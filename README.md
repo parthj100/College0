@@ -2,7 +2,7 @@
 
 > AI-Enabled College Program Management System
 
-College0 is a full-stack academic management platform that supports the complete lifecycle of a college program — from student and instructor admissions through course registration, grading, academic standing, complaints, and graduation. An integrated AI assistant answers role-scoped questions using a local knowledge store first, with a general LLM as fallback.
+College0 is a full-stack academic management platform that supports the complete lifecycle of a college program. From student and instructor admissions through course registration, grading, academic standing, complaints, and graduation. An integrated AI assistant answers role-scoped questions using a local knowledge store first, with a general LLM as fallback.
 
 ---
 

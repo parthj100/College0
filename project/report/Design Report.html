@@ -1,0 +1,1630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>College0 · Design Report</title>
+<meta name="viewport" content="width=1400"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --ink: #1a1613; --ink-2: #4a423a; --ink-3: #8a7e6f;
+  --bg: #f2ede2; --bg-2: #e8dfc9; --surface: #fbf7ee;
+  --line: #d6c9ae; --accent: #8b2e2e; --ok: #2f6b3d;
+  --warn: #a56a00; --blue: #3b4cca;
+  --sans: "Inter", ui-sans-serif, sans-serif;
+  --serif: "Fraunces", "Times New Roman", serif;
+  --mono: "JetBrains Mono", ui-monospace, monospace;
+}
+html { scroll-behavior: smooth; }
+body { background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 14px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+
+/* ── Layout ── */
+.shell { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }
+.toc {
+  position: sticky; top: 0; height: 100vh; overflow-y: auto;
+  background: var(--ink); color: var(--bg);
+  padding: 28px 16px; display: flex; flex-direction: column; gap: 4px;
+  font-family: var(--mono); font-size: 11px;
+}
+.toc-title { color: var(--accent); font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #333; }
+.toc a { display: block; color: #aaa; text-decoration: none; padding: 4px 8px; border-radius: 2px; }
+.toc a:hover { background: #2a2520; color: #fff; }
+.toc a.sec { color: #ddd; font-weight: 500; margin-top: 8px; }
+.toc a.sub { padding-left: 20px; font-size: 10.5px; color: #888; }
+.toc a.deep { padding-left: 32px; font-size: 10px; color: #666; }
+
+/* ── Content ── */
+.content { padding: 0; max-width: 1100px; }
+
+/* Cover */
+.cover {
+  background: var(--ink); color: var(--bg);
+  padding: 80px 64px; min-height: 340px;
+  display: flex; flex-direction: column; justify-content: space-between;
+}
+.cover-top { font-family: var(--mono); font-size: 10.5px; color: #888; letter-spacing: 0.18em; text-transform: uppercase; }
+.cover h1 { font-family: var(--serif); font-size: 72px; line-height: 1.0; letter-spacing: -0.03em; font-weight: 400; margin-top: 24px; }
+.cover h1 em { font-style: italic; color: var(--accent); }
+.cover-meta { font-family: var(--mono); font-size: 11px; color: #888; margin-top: 24px; display: flex; gap: 40px; }
+.cover-meta b { display: block; color: #ddd; margin-bottom: 2px; }
+
+/* Sections */
+section { padding: 56px 64px; border-bottom: 1px solid var(--line); }
+section:last-child { border-bottom: none; }
+
+.sec-eyebrow { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.2em; color: var(--accent); margin-bottom: 10px; }
+.sec-num { font-family: var(--mono); font-size: 10px; color: var(--ink-3); letter-spacing: 0.12em; margin-bottom: 4px; }
+h2.sec-title { font-family: var(--serif); font-size: 42px; letter-spacing: -0.02em; font-weight: 400; line-height: 1.05; margin-bottom: 28px; }
+h3 { font-family: var(--serif); font-size: 26px; letter-spacing: -0.01em; font-weight: 400; margin: 32px 0 14px; color: var(--ink); }
+h4 { font-family: var(--mono); font-size: 12px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--ink-3); margin: 24px 0 10px; }
+p { color: var(--ink-2); margin-bottom: 14px; max-width: 72ch; line-height: 1.7; }
+p:last-child { margin-bottom: 0; }
+
+/* Diagram wrapper */
+.diagram { background: var(--surface); border: 1px solid var(--line); border-radius: 2px; overflow-x: auto; margin: 24px 0; }
+.diagram svg { display: block; width: 100%; height: auto; }
+.diagram-cap { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); padding: 8px 14px; border-top: 1px solid var(--line); text-transform: uppercase; letter-spacing: 0.1em; }
+
+/* Use case cards */
+.uc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--line); border: 1px solid var(--line); margin: 24px 0; }
+.uc { background: var(--surface); padding: 20px; }
+.uc-id { font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); margin-bottom: 6px; }
+.uc-name { font-family: var(--serif); font-size: 20px; margin-bottom: 8px; }
+.uc-actors { font-family: var(--mono); font-size: 11px; color: var(--ink-3); margin-bottom: 12px; }
+.uc table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.uc table td { vertical-align: top; padding: 5px 8px; border-bottom: 1px solid var(--line); }
+.uc table td:first-child { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); width: 100px; white-space: nowrap; }
+.uc table td.step { color: var(--ink); }
+.uc table td.exc { color: var(--accent); }
+.label-ok { display: inline-block; font-family: var(--mono); font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.1em; padding: 1px 6px; background: color-mix(in oklab,var(--ok) 15%,var(--surface)); border: 1px solid color-mix(in oklab,var(--ok) 40%,var(--line)); color: var(--ok); border-radius: 2px; }
+.label-exc { display: inline-block; font-family: var(--mono); font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.1em; padding: 1px 6px; background: color-mix(in oklab,var(--accent) 10%,var(--surface)); border: 1px solid color-mix(in oklab,var(--accent) 30%,var(--line)); color: var(--accent); border-radius: 2px; }
+
+/* Pseudo-code blocks */
+.pseudo {
+  background: var(--ink); color: #c5b8a8;
+  font-family: var(--mono); font-size: 12.5px; line-height: 1.75;
+  padding: 24px 28px; margin: 20px 0;
+  border-radius: 2px; overflow-x: auto;
+  white-space: pre;
+}
+.pseudo .kw { color: #d9a441; }
+.pseudo .cm { color: #6b6055; font-style: italic; }
+.pseudo .type { color: #7cc4b8; }
+.pseudo .lit { color: #8fbc8b; }
+.pseudo .acc { color: #e07070; }
+.pseudo .ok  { color: #7db87d; }
+.pseudo .fn  { color: #a8c0e0; }
+
+.method-header {
+  background: color-mix(in oklab, var(--accent) 10%, var(--surface));
+  border-left: 3px solid var(--accent);
+  padding: 12px 18px; margin: 32px 0 0;
+  display: flex; align-items: baseline; gap: 14px;
+  flex-wrap: wrap;
+}
+.method-header .mname { font-family: var(--mono); font-size: 13.5px; color: var(--ink); font-weight: 500; }
+.method-header .mio { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+
+/* Tables */
+table.spec { width: 100%; border-collapse: collapse; font-size: 13px; margin: 16px 0; }
+table.spec th { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-3); padding: 8px 12px; border-bottom: 2px solid var(--line); text-align: left; }
+table.spec td { padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; color: var(--ink-2); }
+table.spec td:first-child { font-family: var(--mono); font-size: 11.5px; color: var(--accent); white-space: nowrap; }
+table.spec tr:hover td { background: var(--bg-2, #e8dfc9); }
+
+/* Entity table */
+.entity-block { margin-bottom: 32px; }
+.entity-block h4 { margin-top: 0; }
+
+/* Callout */
+.callout { border-left: 3px solid var(--warn); background: color-mix(in oklab,var(--warn) 8%,var(--surface)); padding: 12px 18px; margin: 16px 0; font-size: 13px; color: color-mix(in oklab,var(--warn) 70%,var(--ink)); }
+.callout.ok { border-color: var(--ok); background: color-mix(in oklab,var(--ok) 8%,var(--surface)); color: color-mix(in oklab,var(--ok) 70%,var(--ink)); }
+.callout.info { border-color: var(--blue); background: color-mix(in oklab,var(--blue) 8%,var(--surface)); color: color-mix(in oklab,var(--blue) 60%,var(--ink)); }
+
+.rule { display: flex; gap: 10px; align-items: flex-start; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+.rule .rn { font-family: var(--mono); font-size: 10px; color: var(--accent); width: 48px; flex-shrink: 0; margin-top: 2px; }
+.rule .rb { color: var(--ink-2); }
+
+hr { border: 0; border-top: 1px dashed var(--line); margin: 32px 0; }
+
+.screen-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); margin: 24px 0; }
+.screen-tile { background: var(--surface); padding: 18px; }
+.screen-tile .st-num { font-family: var(--mono); font-size: 10px; color: var(--accent); letter-spacing: 0.14em; }
+.screen-tile .st-name { font-family: var(--serif); font-size: 18px; margin: 4px 0 8px; }
+.screen-tile p { font-size: 12.5px; max-width: none; }
+</style>
+</head>
+<body>
+<div class="shell">
+
+<!-- ── TABLE OF CONTENTS ── -->
+<nav class="toc">
+  <div class="toc-title">College0 · Design Report</div>
+  <a href="#cover" class="sec">Cover</a>
+  <a href="#s1" class="sec">1 · Introduction</a>
+  <a href="#s1-arch" class="sub">1.1 System Architecture</a>
+  <a href="#s1-collab" class="sub">1.2 Collaboration Diagram</a>
+  <a href="#s1-rules" class="sub">1.3 Business Rules</a>
+  <a href="#s2" class="sec">2 · Use Cases</a>
+  <a href="#uc01" class="sub">UC-01 Apply for Admission</a>
+  <a href="#uc02" class="sub">UC-02 Process Application</a>
+  <a href="#uc03" class="sub">UC-03 Register for Courses</a>
+  <a href="#uc04" class="sub">UC-04 Manage Wait-list</a>
+  <a href="#uc05" class="sub">UC-05 Write Class Review</a>
+  <a href="#uc06" class="sub">UC-06 Assign Grade</a>
+  <a href="#uc07" class="sub">UC-07 Check Grade Distribution</a>
+  <a href="#uc08" class="sub">UC-08 Issue Warning</a>
+  <a href="#uc09" class="sub">UC-09 Redeem Honor Credit</a>
+  <a href="#uc10" class="sub">UC-10 Submit Complaint</a>
+  <a href="#uc11" class="sub">UC-11 Process Complaint</a>
+  <a href="#uc12" class="sub">UC-12 Apply for Graduation</a>
+  <a href="#uc13" class="sub">UC-13 Cancel Under-enrolled Course</a>
+  <a href="#uc14" class="sub">UC-14 Manage Semester Phase</a>
+  <a href="#uc15" class="sub">UC-15 Ask AI Assistant</a>
+  <a href="#uc16" class="sub">UC-16 First-Login Password Change</a>
+  <a href="#s2-petri" class="sub">Petri Nets (3)</a>
+  <a href="#s3" class="sec">3 · E-R Diagram</a>
+  <a href="#s3-entities" class="sub">3.1 Entity Definitions</a>
+  <a href="#s4" class="sec">4 · Detailed Design</a>
+  <a href="#m01" class="sub">applyForAdmission</a>
+  <a href="#m02" class="sub">processApplication</a>
+  <a href="#m03" class="sub">registerCourses</a>
+  <a href="#m04" class="sub">addToWaitList</a>
+  <a href="#m05" class="sub">processWaitListEntry</a>
+  <a href="#m06" class="sub">writeReview</a>
+  <a href="#m07" class="sub">filterTabooWords</a>
+  <a href="#m08" class="sub">assignGrade</a>
+  <a href="#m09" class="sub">checkGradeDistribution</a>
+  <a href="#m10" class="sub">computeStudentGPA</a>
+  <a href="#m11" class="sub">checkStudentStanding</a>
+  <a href="#m12" class="sub">checkHonorRoll</a>
+  <a href="#m13" class="sub">issueWarning</a>
+  <a href="#m14" class="sub">redeemHonorCredit</a>
+  <a href="#m15" class="sub">submitComplaint</a>
+  <a href="#m16" class="sub">processComplaint</a>
+  <a href="#m17" class="sub">applyForGraduation</a>
+  <a href="#m18" class="sub">processGraduation</a>
+  <a href="#m19" class="sub">cancelUnderstaffedCourses</a>
+  <a href="#m20" class="sub">triggerSpecialRegistration</a>
+  <a href="#m21" class="sub">advanceSemesterPhase</a>
+  <a href="#m22" class="sub">setupClass</a>
+  <a href="#m23" class="sub">askAI</a>
+  <a href="#m24" class="sub">checkInstructorWarnings</a>
+  <a href="#m25" class="sub">suspendInstructor</a>
+  <a href="#m26" class="sub">firstLoginChangePassword</a>
+  <a href="#m27" class="sub">generateStudyBuddyMatches</a>
+  <a href="#s5" class="sec">5 · System Screens</a>
+</nav>
+
+<!-- ── CONTENT ── -->
+<div class="content">
+
+<!-- COVER -->
+<div class="cover" id="cover">
+  <div>
+    <div class="cover-top">College0 · Student Information System · Design Report</div>
+    <h1>Detailed<br/><em>Design</em><br/>Document</h1>
+  </div>
+  <div class="cover-meta">
+    <div><b>System</b>College0 SIS v0.4</div>
+    <div><b>Date</b>April 19, 2026</div>
+    <div><b>Status</b>Draft for Review</div>
+    <div><b>Sections</b>5 (incl. prototype)</div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- SECTION 1 -->
+<!-- ══════════════════════════════════════════════ -->
+<section id="s1">
+  <div class="sec-num">SECTION 01</div>
+  <h2 class="sec-title">Introduction</h2>
+
+  <p>College0 is an AI-enabled online college program management system for a small graduate school of approximately 47 students, 12 instructors, and a single registrar. The system supports four distinct user roles — <strong>Registrar</strong>, <strong>Instructor</strong>, <strong>Student</strong>, and <strong>Visitor</strong> — and organises each academic term into four managed phases.</p>
+  <p>This document provides the full data structure, logic, use cases, entity model, and pseudo-coded methods needed to implement College0. It is the primary reference for the implementation team.</p>
+
+  <h3 id="s1-arch">1.1 System Architecture Overview</h3>
+  <p>College0 is a single-window GUI application (web-based SPA or equivalent desktop shell). All state is held in a relational store. An AI subsystem runs locally with a vector database seeded from the college handbook and registrar memos; queries that cannot be answered locally are escalated to an external LLM with a hallucination warning.</p>
+
+  <table class="spec">
+    <thead><tr><th>Layer</th><th>Technology choice</th><th>Responsibility</th></tr></thead>
+    <tbody>
+      <tr><td>Presentation</td><td>React SPA (single window)</td><td>All GUI screens; no pop-up windows</td></tr>
+      <tr><td>State / BLL</td><td>In-memory store + service layer</td><td>All business rules, role enforcement</td></tr>
+      <tr><td>Persistence</td><td>Relational DB (SQLite or PostgreSQL)</td><td>All entities per Section 3</td></tr>
+      <tr><td>AI subsystem</td><td>Vector DB (local) + external LLM API</td><td>Context-aware Q&amp;A per role</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="s1-collab">1.2 Collaboration Class Diagram</h3>
+  <p>The diagram below shows the main classes, their inheritance hierarchy (User → subtypes), and key associations including multiplicities.</p>
+  <div class="diagram" id="collab-container">
+    <div class="diagram-cap">Fig 1.1 · Collaboration Class Diagram</div>
+  </div>
+
+  <h3 id="s1-rules">1.3 Core Business Rules</h3>
+  <div class="rule"><span class="rn">BR-01</span><span class="rb">A student must register for 2–4 courses per semester. Fewer than 2 triggers a system warning.</span></div>
+  <div class="rule"><span class="rn">BR-02</span><span class="rb">Courses with fewer than 3 enrolled students are cancelled after the registration period; affected students receive a special registration window.</span></div>
+  <div class="rule"><span class="rn">BR-03</span><span class="rb">Any student with cumulative GPA &lt; 2.0, or who has failed the same course twice, is automatically terminated.</span></div>
+  <div class="rule"><span class="rn">BR-04</span><span class="rb">Students with cumulative GPA between 2.0–2.25 receive a warning and must interview the registrar.</span></div>
+  <div class="rule"><span class="rn">BR-05</span><span class="rb">Semester GPA ≥ 3.75 or cumulative GPA &gt; 3.5 (after ≥ 2 semesters) earns honor-roll status; one honor retires one warning.</span></div>
+  <div class="rule"><span class="rn">BR-06</span><span class="rb">Reviews are anonymous to everyone except the registrar. 1–2 taboo words → masked + 1 warning to author. ≥ 3 → hidden + 2 warnings.</span></div>
+  <div class="rule"><span class="rn">BR-07</span><span class="rb">Any instructor whose class average rating &lt; 2.0 receives a warning. Three cumulative warnings → suspension for next semester.</span></div>
+  <div class="rule"><span class="rn">BR-08</span><span class="rb">Instructors whose class GPA is above 3.5 or below 2.5 must justify to the registrar; unjustified → warning or immediate termination.</span></div>
+  <div class="rule"><span class="rn">BR-09</span><span class="rb">Any instructor who did not post all grades by end of grading period receives a warning. All courses cancelled → instructor suspended.</span></div>
+  <div class="rule"><span class="rn">BR-10</span><span class="rb">Graduation requires completion of 8 classes and registrar confirmation of all required courses. Reckless application → 1 warning.</span></div>
+  <div class="rule"><span class="rn">BR-11</span><span class="rb">A student may retake a class only if they received an F in a previous attempt.</span></div>
+  <div class="rule"><span class="rn">BR-12</span><span class="rb">Students with ≥ 3 warnings are suspended for one semester and must pay a fine to the registrar.</span></div>
+</section>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- SECTION 2 -->
+<!-- ══════════════════════════════════════════════ -->
+<section id="s2">
+  <div class="sec-num">SECTION 02</div>
+  <h2 class="sec-title">Use Cases</h2>
+  <p>Each use case is described with actors, preconditions, a normal scenario, one or more exceptional scenarios, and postconditions.</p>
+
+  <!-- UC-01 -->
+  <h3 id="uc01">UC-01 · Apply for Admission</h3>
+  <div class="uc-grid">
+    <div class="uc">
+      <div class="uc-id">UC-01-N · Normal Scenario</div>
+      <div class="uc-name">Apply for Admission</div>
+      <div class="uc-actors">Actors: Visitor | System | Registrar (async)</div>
+      <table>
+        <tr><td>Pre</td><td class="step">Visitor is unauthenticated. Registration quota not full.</td></tr>
+        <tr><td>Step 1</td><td class="step">Visitor opens Apply form, selects type: Student or Instructor.</td></tr>
+        <tr><td>Step 2</td><td class="step">Visitor provides full name, email, prior GPA (student), and statement.</td></tr>
+        <tr><td>Step 3</td><td class="step">System stores Application record with status = PENDING.</td></tr>
+        <tr><td>Step 4</td><td class="step">System auto-screens: if student with GPA &gt; 3.0 and quota open → status = AUTO_ACCEPTED.</td></tr>
+        <tr><td>Step 5</td><td class="step">System emails temporary credentials (student ID + temp password). Student must change password on first login.</td></tr>
+        <tr><td>Post</td><td class="step">Student account created, isActive = TRUE, firstLogin = TRUE.</td></tr>
+      </table>
+    </div>
+    <div class="uc">
+      <div class="uc-id">UC-01-E · Exceptional Scenarios</div>
+      <div class="uc-name">Apply for Admission</div>
+      <div class="uc-actors">Actors: Visitor | System | Registrar</div>
+      <table>
+        <tr><td>E1: Low GPA</td><td class="exc">GPA ≤ 3.0 → status = PENDING_REGISTRAR. Registrar must decide manually and must provide written justification if rejecting a high-GPA applicant or accepting a low-GPA one.</td></tr>
+        <tr><td>E2: Quota full</td><td class="exc">Even if GPA &gt; 3.0, quota reached → routed to registrar. Registrar may reject without justification.</td></tr>
+        <tr><td>E3: Instructor app</td><td class="exc">Instructor applications always go to registrar (no auto-accept). Approval assigns class(es); rejection needs no justification.</td></tr>
+        <tr><td>E4: Duplicate email</td><td class="exc">System detects existing account for email → rejects with "Account already exists."</td></tr>
+        <tr><td>Post (E)</td><td class="exc">Application stored; applicant notified of outcome or pending status.</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- UC-02 -->
+  <h3 id="uc02">UC-02 · Process Application (Registrar)</h3>
+  <div class="uc-grid">
+    <div class="uc">
+      <div class="uc-id">UC-02-N · Normal</div>
+      <div class="uc-name">Process Application</div>
+      <div class="uc-actors">Actors: Registrar | System</div>
+      <table>
+        <tr><td>Pre</td><td class="step">Application with status = PENDING_REGISTRAR exists.</td></tr>
+        <tr><td>Step 1</td><td class="step">Registrar views applications queue; selects one.</td></tr>
+        <tr><td>Step 2</td><td class="step">Registrar reviews name, GPA, statement.</td></tr>
+        <tr><td>Step 3</td><td class="step">Registrar selects Accept or Reject.</td></tr>
+        <tr><td>Step 4</td><td class="step">System sets status, records processedBy, processedAt. Emails applicant.</td></tr>
+        <tr><td>Post</td><td class="step">Application resolved. If accepted: account created.</td></tr>
+      </table>
+    </div>
+    <div class="uc">
+      <div class="uc-id">UC-02-E · Exceptional</div>
+      <div class="uc-name">Process Application</div>
+      <div class="uc-actors">Actors: Registrar | System</div>
+      <table>
+        <tr><td>E1: Rule deviation</td><td class="exc">Registrar rejects GPA &gt; 3.0 applicant or accepts GPA ≤ 3.0 without justification → System blocks submission, requires justification field.</td></tr>
+        <tr><td>E2: Quota reached mid-process</td><td class="exc">Another student was accepted between page-load and submission → System re-checks quota and alerts registrar.</td></tr>
+        <tr><td>E3: No action</td><td class="exc">Application sits unprocessed: system sends reminder to registrar after 72h.</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- UC-03 -->
+  <h3 id="uc03">UC-03 · Register for Courses</h3>
+  <div class="uc-grid">
+    <div class="uc">
+      <div class="uc-id">UC-03-N · Normal</div>
+      <div class="uc-name">Course Registration</div>
+      <div class="uc-actors">Actors: Student | System</div>
+      <table>
+        <tr><td>Pre</td><td class="step">Current semester phase = REGISTRATION. Student is matriculated, not suspended.</td></tr>
+        <tr><td>Step 1</td><td class="step">Student browses catalog, selects 2–4 courses.</td></tr>
+        <tr><td>Step 2</td><td class="step">System checks time conflicts for each added course.</td></tr>
+        <tr><td>Step 3</td><td class="step">System checks enrollment cap for each course.</td></tr>
+        <tr><td>Step 4</td><td class="step">Student submits cart. System creates ENROLLMENT records (status = ENROLLED).</td></tr>
+        <tr><td>Post</td><td class="step">course.enrolled++ for each. Student can view schedule.</td></tr>
+      </table>
+    </div>
+    <div class="uc">
+      <div class="uc-id">UC-03-E · Exceptional</div>
+      <div class="uc-name">Course Registration</div>
+      <div class="uc-actors">Actors: Student | System</div>
+      <table>
+        <tr><td>E1: Time conflict</td><td class="exc">Two chosen courses overlap on same day/time → System highlights conflict; student must remove one before submitting.</td></tr>
+        <tr><td>E2: Course full</td><td class="exc">enrollment == capacity → student offered wait-list option.</td></tr>
+        <tr><td>E3: Cart &lt; 2</td><td class="exc">Submit blocked until at least 2 courses selected.</td></tr>
+        <tr><td>E4: Retake policy</td><td class="exc">Student selects a previously passed course → System blocks. Retake allowed only if prior grade = F.</td></tr>
+        <tr><td>E5: Phase violation</td><td class="exc">Phase ≠ REGISTRATION and ≠ SPECIAL → all registration actions disabled.</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- UC-04 -->
+  <h3 id="uc04">UC-04 · Manage Wait-list</h3>
+  <div class="uc-grid">
+    <div class="uc">
+      <div class="uc-id">UC-04-N · Normal</div>
+      <div class="uc-name">Manage Wait-list</div>
+      <div class="uc-actors">Actors: Instructor | System | Student</div>
+      <table>
+        <tr><td>Pre</td><td class="step">Course has enrolled == capacity. Students have joined wait-list.</td></tr>
+        <tr><td>Step 1</td><td class="step">Instructor opens roster view, sees wait-list panel.</td></tr>
+        <tr><td>Step 2</td><td class="step">Instructor selects a wait-listed student and clicks "Let in".</td></tr>
+        <tr><td>Step 3</td><td class="step">System checks that student's total enrollment ≤ 3 (won't exceed 4 with new addition). If time conflict exists → system warns instructor.</td></tr>
+        <tr><td>Step 4</td><td class="step">Enrollment status updated to ENROLLED; student notified.</td></tr>
+        <tr><td>Post</td><td class="step">course.enrolled++; waitlist entry removed.</td></tr>
+      </table>
+    </div>
+    <div class="uc">
+      <div class="uc-id">UC-04-E · Exceptional</div>
+      <div class="uc-name">Manage Wait-list</div>
+      <div class="uc-actors">Actors: Instructor | System</div>
+      <table>
+        <tr><td>E1: Student 4-course cap</td><td class="exc">Adding this course would give student 5 enrollments → instructor blocked; student stays on wait-list.</td></tr>
+        <tr><td>E2: Student withdrew</td><td class="exc">Wait-listed student has since dropped the program → entry removed automatically.</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- UC-05 -->
+  <h3 id="uc05">UC-05 · Write Class Review</h3>
+  <div class="uc-grid">
+    <div class="uc">
+      <div class="uc-id">UC-05-N · Normal</div>
+      <div class="uc-name">Write Class Review</div>
+      <div class="uc-actors">Actors: Student | System</div>
+      <table>
+        <tr><td>Pre</td><td class="step">Student is ENROLLED in course. Phase = CLASS_RUNNING. Instructor has not yet posted grade.</td></tr>
+        <tr><td>Step 1</td><td class="step">Student selects star rating (1–5) and writes review text.</td></tr>
+        <tr><td>Step 2</td><td class="step">System runs filterTabooWords() on body text.</td></tr>
+        <tr><td>Step 3</td><td class="step">0 taboo words → review stored as-is, isVisible = TRUE.</td></tr>
+        <tr><td>Step 4</td><td class="step">Course avgRating recomputed.</td></tr>
+        <tr><td>Post</td><td class="step">Review visible to all. Reviewer identity hidden except from registrar.</td></tr>
+      </table>
+    </div>
+    <div class="uc">
+      <div class="uc-id">UC-05-E · Exceptional</div>
+      <div class="uc-name">Write Class Review</div>
+      <div class="uc-actors">Actors: Student | System | Registrar</div>
+      <table>
+        <tr><td>E1: 1–2 taboo words</td><td class="exc">Words masked with ****. Review shown. 1 warning issued to student. Registrar can see original.</td></tr>
+        <tr><td>E2: ≥ 3 taboo words</td><td class="exc">Review hidden (isVisible = FALSE). 2 warnings issued to student.</td></tr>
+        <tr><td>E3: Grade already posted</td><td class="exc">Instructor has posted grade → review form disabled. Button reads "Grading closed."</td></tr>
+        <tr><td>E4: Low rating warning</td><td class="exc">If new avgRating &lt; 2.0 → system automatically issues warning to instructor.</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- UC-06 -->
+  <h3 id="uc06">UC-06 · Assign Grade</h3>
+  <div class="uc-grid">
+    <div class="uc">
+      <div class="uc-id">UC-06-N · Normal</div>
+      <div class="uc-name">Assign Grade</div>
+      <div class="uc-actors">Actors: Instructor | System</div>
+      <table>
+        <tr><td>Pre</td><td class="step">Phase = GRADING. Student is ENROLLED. No grade yet posted.</td></tr>
+        <tr><td>Step 1</td><td class="step">Instructor opens roster, selects grade for each student.</td></tr>
+        <tr><td>Step 2</td><td class="step">Instructor clicks "Post grades".</td></tr>
+        <tr><td>Step 3</td><td class="step">System stores GRADE records. Marks review window closed for course.</td></tr>
+        <tr><td>Step 4</td><td class="step">System calls computeStudentGPA() and checkStudentStanding() for each student.</td></tr>
+        <tr><td>Step 5</td><td class="step">System calls checkGradeDistribution() for the course.</td></tr>
+        <tr><td>Post</td><td class="step">Grades visible to students. GPA updated.</td></tr>
+      </table>
+    </div>
+    <div class="uc">
+      <div class="uc-id">UC-06-E · Exceptional</div>
+      <div class="uc-name">Assign Grade</div>
+      <div class="uc-actors">Actors: Instructor | System | Registrar</div>
+      <table>
+        <tr><td>E1: Partial grades at deadline</td><td class="exc">Grading period ends with ungrades students → system issues 1 warning to instructor per uncompleted class.</td></tr>
+        <tr><td>E2: Class GPA out of band</td><td class="exc">Class avg GPA &gt; 3.5 or &lt; 2.5 → registrar notified; instructor must justify. Without adequate justification: warning or termination.</td></tr>
+        <tr><td>E3: Student GPA &lt; 2.0</td><td class="exc">Automatic student termination triggered (see UC-11 flow).</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- UC-07 -->
+  <h3 id="uc07">UC-07 · Check Grade Distribution</h3>
+  <div class="uc-grid">
+    <div class="uc">
+      <div class="uc-id">UC-07-N · Normal</div>
+      <div class="uc-name">Check Grade Distribution</div>
+      <div class="uc-actors">Actors: System (auto) | Registrar</div>
+      <table>
+        <tr><td>Pre</td><td class="step">All grades posted for a course.</td></tr>
+        <tr><td>Step 1</td><td class="step">System computes average grade points for course.</td></tr>
+        <tr><td>Step 2</td><td class="step">If 2.5 ≤ avg ≤ 3.5 → no action.</td></tr>
+        <tr><td>Post</td><td class="step">Audit log entry created.</td></tr>
+      </table>
+    </div>
+    <div class="uc">
+      <div class="uc-id">UC-07-E · Exceptional</div>
+      <div class="uc-name">Check Grade Distribution</div>
+      <div class="uc-actors">Actors: System | Registrar | Instructor</div>
+      <table>
+        <tr><td>E1: Out of band</td><td class="exc">avg &gt; 3.5 or &lt; 2.5 → registrar sees flagged course. Instructor asked to justify in writing within 5 days.</td></tr>
+        <tr><td>E2: No justification</td><td class="exc">After 5 days no justification → registrar can warn or fire instructor immediately.</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- UC-08 -->
+  <h3 id="uc08">UC-08 · Issue Warning</h3>
+  <div class="uc-grid">
+    <div class="uc">
+      <div class="uc-id">UC-08-N · Normal</div>
+      <div class="uc-name">Issue Warning</div>
+      <div class="uc-actors">Actors: Registrar / System | Target: Student or Instructor</div>
+      <table>
+        <tr><td>Pre</td><td class="step">A rule violation or complaint outcome requires a warning.</td></tr>
+        <tr><td>Step 1</td><td class="step">System or registrar creates WARNING record with reason, targetID, targetType.</td></tr>
+        <tr><td>Step 2</td><td class="step">Target notified in their dashboard.</td></tr>
+        <tr><td>Step 3</td><td class="step">target.warningCount++.</td></tr>
+        <tr><td>Post</td><td class="step">Warning active (isRetired = FALSE). Threshold checks run.</td></tr>
+      </table>
+    </div>
+    <div class="uc">
+      <div class="uc-id">UC-08-E · Exceptional</div>
+      <div class="uc-name">Issue Warning</div>
+      <div class="uc-actors">Actors: System</div>
+      <table>
+        <tr><td>E1: Student 3rd warning</td><td class="exc">warningCount == 3 → student suspended 1 semester; fine flagged for registrar collection.</td></tr>
+        <tr><td>E2: Instructor 3rd warning</td><td class="exc">warningCount == 3 → instructor suspended; nextSemesterBanned = TRUE.</td></tr>
+        <tr><td>E3: Honor redemption pending</td><td class="exc">If student has unused honors, dashboard prompts redemption before threshold is crossed.</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- UC-09 -->
+  <h3 id="uc09">UC-09 · Redeem Honor Credit</h3>
+  <div class="uc-grid">
+    <div class="uc">
+      <div class="uc-id">UC-09-N · Normal</div>
+      <div class="uc-name">Redeem Honor Credit</div>
+      <div class="uc-actors">Actors: Student | System | Registrar</div>
+      <table>
+        <tr><td>Pre</td><td class="step">Student has ≥ 1 unused HONOR and ≥ 1 active (non-retired) WARNING.</td></tr>
+        <tr><td>Step 1</td><td class="step">Student clicks "Redeem honor" on dashboard; selects which warning to retire.</td></tr>
+        <tr><td>Step 2</td><td class="step">System sets honor.usedToRetire = warningID, warning.isRetired = TRUE.</td></tr>
+        <tr><td>Step 3</td><td class="step">student.warningCount--. Registrar notified of redemption.</td></tr>
+        <tr><td>Post</td><td class="step">Warning retired. Honor consumed.</td></tr>
+      </table>
+    </div>
+    <div class="uc">
+      <div class="uc-id">UC-09-E · Exceptional</div>
+      <div class="uc-name">Redeem Honor Credit</div>
+      <div class="uc-actors">Actors: Student | System</div>
+      <table>
+        <tr><td>E1: No active warnings</td><td class="exc">Redeem button disabled; dashboard note: "No warnings to clear."</td></tr>
+        <tr><td>E2: No unused honors</td><td class="exc">Button disabled; dashboard shows honor count = 0.</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- UC-10 -->
+  <h3 id="uc10">UC-10 · Submit Complaint</h3>
+  <div class="uc-grid">
+    <div class="uc">
+      <div class="uc-id">UC-10-N · Normal</div>
+      <div class="uc-name">Submit Complaint</div>
+      <div class="uc-actors">Actors: Student or Instructor | System | Registrar</div>
+      <table>
+        <tr><td>Pre</td><td class="step">User is authenticated. Target is another student or an instructor.</td></tr>
+        <tr><td>Step 1</td><td class="step">User opens Complaint form, selects target, writes description.</td></tr>
+        <tr><td>Step 2</td><td class="step">System stores COMPLAINT (status = PENDING). Registrar alerted.</td></tr>
+        <tr><td>Post</td><td class="step">Complaint visible in registrar queue.</td></tr>
+      </table>
+    </div>
+    <div class="uc">
+      <div class="uc-id">UC-10-E · Exceptional</div>
+      <div class="uc-name">Submit Complaint</div>
+      <div class="uc-actors">Actors: Instructor | System | Registrar</div>
+      <table>
+        <tr><td>E1: Instructor vs student</td><td class="exc">Instructor may request warn or de-register. Registrar must take action — either punish student or issue 1 warning to the instructor for frivolous complaint.</td></tr>
+        <tr><td>E2: Duplicate complaint</td><td class="exc">Same fromID + targetID + open status → system warns user a complaint is already pending.</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- UC-11 -->
+  <h3 id="uc11">UC-11 · Process Complaint</h3>
+  <div class="uc-grid">
+    <div class="uc">
+      <div class="uc-id">UC-11-N · Normal</div>
+      <div class="uc-name">Process Complaint</div>
+      <div class="uc-actors">Actors: Registrar | System</div>
+      <table>
+        <tr><td>Pre</td><td class="step">COMPLAINT.status = PENDING.</td></tr>
+        <tr><td>Step 1</td><td class="step">Registrar reviews complaint details, parties, history.</td></tr>
+        <tr><td>Step 2</td><td class="step">Registrar selects action: warn target, de-register target, or dismiss.</td></tr>
+        <tr><td>Step 3</td><td class="step">System applies action; both parties notified.</td></tr>
+        <tr><td>Post</td><td class="step">COMPLAINT.status = RESOLVED. resolvedBy, resolvedAt set.</td></tr>
+      </table>
+    </div>
+    <div class="uc">
+      <div class="uc-id">UC-11-E · Exceptional</div>
+      <div class="uc-name">Process Complaint</div>
+      <div class="uc-actors">Actors: Registrar | System</div>
+      <table>
+        <tr><td>E1: Instructor complaint dismissed</td><td class="exc">Registrar finds complaint frivolous → 1 warning to instructor (mandatory; registrar cannot do nothing for instructor-initiated complaint).</td></tr>
+        <tr><td>E2: Counter-complaint</td><td class="exc">Target files counter-complaint while original is pending → stored separately; registrar resolves both together.</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- UC-12 -->
+  <h3 id="uc12">UC-12 · Apply for Graduation</h3>
+  <div class="uc-grid">
+    <div class="uc">
+      <div class="uc-id">UC-12-N · Normal</div>
+      <div class="uc-name">Apply for Graduation</div>
+      <div class="uc-actors">Actors: Student | System | Registrar</div>
+      <table>
+        <tr><td>Pre</td><td class="step">Student has completedClasses ≥ 8 and all required courses passed.</td></tr>
+        <tr><td>Step 1</td><td class="step">Student submits graduation application.</td></tr>
+        <tr><td>Step 2</td><td class="step">System checks completedClasses ≥ 8. If not → blocked.</td></tr>
+        <tr><td>Step 3</td><td class="step">Registrar reviews required course checklist.</td></tr>
+        <tr><td>Step 4</td><td class="step">All requirements met → student graduates; account deactivated with Bachelor's degree record.</td></tr>
+        <tr><td>Post</td><td class="step">Student leaves system.</td></tr>
+      </table>
+    </div>
+    <div class="uc">
+      <div class="uc-id">UC-12-E · Exceptional</div>
+      <div class="uc-name">Apply for Graduation</div>
+      <div class="uc-actors">Actors: Student | System | Registrar</div>
+      <table>
+        <tr><td>E1: Missing required course</td><td class="exc">Registrar finds gap in required courses → student receives 1 warning (reckless application) and must re-apply next semester.</td></tr>
+        <tr><td>E2: &lt; 8 classes</td><td class="exc">System blocks application submission. Shows progress: "X / 8 classes completed."</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- UC-13 -->
+  <h3 id="uc13">UC-13 · Cancel Under-enrolled Course</h3>
+  <div class="uc-grid">
+    <div class="uc">
+      <div class="uc-id">UC-13-N · Normal</div>
+      <div class="uc-name">Cancel Under-enrolled Course</div>
+      <div class="uc-actors">Actors: System (automatic) | Registrar (view)</div>
+      <table>
+        <tr><td>Pre</td><td class="step">Phase transitions from REGISTRATION → CLASS_RUNNING.</td></tr>
+        <tr><td>Step 1</td><td class="step">System checks all courses: enrolled &lt; 3 → status = CANCELLED.</td></tr>
+        <tr><td>Step 2</td><td class="step">Instructor of cancelled course warned (per cancelled course).</td></tr>
+        <tr><td>Step 3</td><td class="step">If all instructor's courses cancelled → instructor suspended.</td></tr>
+        <tr><td>Step 4</td><td class="step">Affected students triggered for special registration period.</td></tr>
+        <tr><td>Post</td><td class="step">Students re-enroll within special window; warnings issued.</td></tr>
+      </table>
+    </div>
+    <div class="uc">
+      <div class="uc-id">UC-13-E · Exceptional</div>
+      <div class="uc-name">Cancel Under-enrolled Course</div>
+      <div class="uc-actors">Actors: System | Student</div>
+      <table>
+        <tr><td>E1: Student now &lt; 2 courses</td><td class="exc">After cancellation, student has &lt; 2 courses → system warning issued. Special registration window opened.</td></tr>
+        <tr><td>E2: No alternatives</td><td class="exc">No open courses left in special window → registrar notified to resolve manually.</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- UC-14 -->
+  <h3 id="uc14">UC-14 · Manage Semester Phase</h3>
+  <div class="uc-grid">
+    <div class="uc">
+      <div class="uc-id">UC-14-N · Normal</div>
+      <div class="uc-name">Manage Semester Phase</div>
+      <div class="uc-actors">Actors: Registrar | System</div>
+      <table>
+        <tr><td>Pre</td><td class="step">Registrar is authenticated. Semester is active.</td></tr>
+        <tr><td>Step 1</td><td class="step">Registrar clicks "Advance to next phase".</td></tr>
+        <tr><td>Step 2</td><td class="step">System validates that current phase's required tasks are complete.</td></tr>
+        <tr><td>Step 3</td><td class="step">currentPhase++; system triggers phase-entry actions (e.g., cancellation check on → Phase 3).</td></tr>
+        <tr><td>Post</td><td class="step">New phase active. All role-based permissions updated.</td></tr>
+      </table>
+    </div>
+    <div class="uc">
+      <div class="uc-id">UC-14-E · Exceptional</div>
+      <div class="uc-name">Manage Semester Phase</div>
+      <div class="uc-actors">Actors: Registrar | System</div>
+      <table>
+        <tr><td>E1: Unresolved tasks</td><td class="exc">e.g., instructors without assigned courses → system warns but allows override with confirmation.</td></tr>
+        <tr><td>E2: Already Phase 4</td><td class="exc">No further advance possible; registrar sees "Close semester" instead.</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- UC-15 -->
+  <h3 id="uc15">UC-15 · Ask AI Assistant</h3>
+  <div class="uc-grid">
+    <div class="uc">
+      <div class="uc-id">UC-15-N · Normal</div>
+      <div class="uc-name">Ask AI Assistant</div>
+      <div class="uc-actors">Actors: Any user | AI subsystem</div>
+      <table>
+        <tr><td>Pre</td><td class="step">User is on any page. ⌘K pressed or button clicked.</td></tr>
+        <tr><td>Step 1</td><td class="step">User types question. Role context injected (visitor / student / instructor).</td></tr>
+        <tr><td>Step 2</td><td class="step">System queries local vector DB with question embedding.</td></tr>
+        <tr><td>Step 3</td><td class="step">Score above threshold → returns local answer + source citation.</td></tr>
+        <tr><td>Post</td><td class="step">AI_QUERY record logged. User sees answer.</td></tr>
+      </table>
+    </div>
+    <div class="uc">
+      <div class="uc-id">UC-15-E · Exceptional</div>
+      <div class="uc-name">Ask AI Assistant</div>
+      <div class="uc-actors">Actors: Any user | AI subsystem | External LLM</div>
+      <table>
+        <tr><td>E1: No local match</td><td class="exc">Score below threshold → query forwarded to external LLM. Answer shown with hallucination warning banner.</td></tr>
+        <tr><td>E2: Role restriction</td><td class="exc">Student asks about another student's grades → system strips that data from context before answering.</td></tr>
+        <tr><td>E3: LLM timeout</td><td class="exc">External API fails → "Could not reach the language model. Please consult the registrar."</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- UC-16 -->
+  <h3 id="uc16">UC-16 · First-Login Password Change</h3>
+  <div class="uc-grid">
+    <div class="uc">
+      <div class="uc-id">UC-16-N · Normal</div>
+      <div class="uc-name">First-Login Password Change</div>
+      <div class="uc-actors">Actors: New Student or Instructor | System</div>
+      <table>
+        <tr><td>Pre</td><td class="step">User.firstLogin = TRUE. Temporary credentials issued by system.</td></tr>
+        <tr><td>Step 1</td><td class="step">User logs in with temp credentials. System detects firstLogin = TRUE.</td></tr>
+        <tr><td>Step 2</td><td class="step">System forces password-change screen (cannot navigate away).</td></tr>
+        <tr><td>Step 3</td><td class="step">User enters temp password for verification, then new password (min 12 chars, confirmed).</td></tr>
+        <tr><td>Step 4</td><td class="step">System hashes new password. Sets firstLogin = FALSE. Tutorial shown for students.</td></tr>
+        <tr><td>Post</td><td class="step">User reaches their dashboard.</td></tr>
+      </table>
+    </div>
+    <div class="uc">
+      <div class="uc-id">UC-16-E · Exceptional</div>
+      <div class="uc-name">First-Login Password Change</div>
+      <div class="uc-actors">Actors: New User | System</div>
+      <table>
+        <tr><td>E1: Wrong temp password</td><td class="exc">3 failures → account locked; registrar must reset.</td></tr>
+        <tr><td>E2: Weak password</td><td class="exc">&lt; 12 chars or matches username → rejected; inline error shown.</td></tr>
+        <tr><td>E3: Mismatch confirmation</td><td class="exc">"New" ≠ "Confirm" → inline error; no change made.</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- PETRI NETS -->
+  <h3 id="s2-petri" style="margin-top:48px;">Petri Nets — Selected Use Cases</h3>
+  <p>The following three Petri nets model the token-flow for the most structurally complex use cases: Course Registration, Application &amp; Admissions, and the Grading Period with its cascading consequences. Filled circles = initial tokens; rectangles = transitions; circles = places.</p>
+
+  <div class="diagram" id="petri1-container">
+    <div class="diagram-cap">Fig 2.1 · Petri Net — Course Registration Flow (UC-03)</div>
+  </div>
+  <div class="diagram" id="petri2-container">
+    <div class="diagram-cap">Fig 2.2 · Petri Net — Application &amp; Admissions Flow (UC-01 / UC-02)</div>
+  </div>
+  <div class="diagram" id="petri3-container">
+    <div class="diagram-cap">Fig 2.3 · Petri Net — Grading Period &amp; Consequences (UC-06 / UC-08)</div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- SECTION 3 -->
+<!-- ══════════════════════════════════════════════ -->
+<section id="s3">
+  <div class="sec-num">SECTION 03</div>
+  <h2 class="sec-title">E-R Diagram</h2>
+  <p>The diagram below shows all entities, their attributes (with PKs and FKs noted), and the relationships between them with multiplicities. Gold text = primary key. Connecting lines use crow's foot notation (single line = 1, forked = Many).</p>
+  <div class="diagram" id="er-container">
+    <div class="diagram-cap">Fig 3.1 · Entity-Relationship Diagram — College0 (full schema)</div>
+  </div>
+
+  <h3 id="s3-entities">3.1 Entity Definitions &amp; Keys</h3>
+
+  <table class="spec">
+    <thead><tr><th>Entity</th><th>Primary Key</th><th>Foreign Keys</th><th>Notable Constraints</th></tr></thead>
+    <tbody>
+      <tr><td>USER</td><td>userID (UUID)</td><td>—</td><td>role ENUM, isActive, warningCount ≥ 0</td></tr>
+      <tr><td>STUDENT</td><td>studentID → USER</td><td>userID</td><td>gpa ∈ [0.0, 4.0], completedClasses ≥ 0</td></tr>
+      <tr><td>INSTRUCTOR</td><td>instructorID → USER</td><td>userID</td><td>warningCount ≥ 0, isSuspended BOOL</td></tr>
+      <tr><td>REGISTRAR</td><td>registrarID → USER</td><td>userID</td><td>canViewAll = TRUE always</td></tr>
+      <tr><td>COURSE</td><td>courseID (UUID)</td><td>semesterID, instructorID</td><td>enrolled ≤ capacity, status ENUM(active, cancelled)</td></tr>
+      <tr><td>ENROLLMENT</td><td>enrollmentID (UUID)</td><td>studentID, courseID</td><td>UNIQUE(studentID, courseID, semesterID). status ENUM</td></tr>
+      <tr><td>GRADE</td><td>gradeID (UUID)</td><td>enrollmentID, postedBy</td><td>letterGrade ∈ {A,A-,B+,B,B-,C+,C,F}. One per enrollment.</td></tr>
+      <tr><td>REVIEW</td><td>reviewID (UUID)</td><td>studentID, courseID</td><td>stars ∈ [1,5]. UNIQUE(studentID, courseID) per semester.</td></tr>
+      <tr><td>WARNING</td><td>warningID (UUID)</td><td>targetID (poly), issuedBy (Registrar), retiredByHonor</td><td>isRetired BOOL DEFAULT FALSE</td></tr>
+      <tr><td>HONOR</td><td>honorID (UUID)</td><td>studentID, semesterID, usedToRetire (Warning, nullable)</td><td>type ENUM(semester, cumulative)</td></tr>
+      <tr><td>COMPLAINT</td><td>complaintID (UUID)</td><td>fromID (User), targetID (User), resolvedBy (Registrar)</td><td>status ENUM(pending, resolved)</td></tr>
+      <tr><td>APPLICATION</td><td>applicationID (UUID)</td><td>processedBy (Registrar)</td><td>type ENUM(student, instructor). justification required when rule deviated.</td></tr>
+      <tr><td>SEMESTER</td><td>semesterID (UUID)</td><td>—</td><td>currentPhase ∈ {1,2,3,4}</td></tr>
+      <tr><td>WAITLIST</td><td>waitlistID (UUID)</td><td>studentID, courseID</td><td>position ≥ 1 (ordered queue)</td></tr>
+      <tr><td>TABOO_WORD</td><td>wordID (UUID)</td><td>addedBy (Registrar)</td><td>word UNIQUE, case-insensitive match</td></tr>
+      <tr><td>AI_QUERY</td><td>queryID (UUID)</td><td>userID (nullable, visitor queries allowed)</td><td>sourceType ENUM(local, llm)</td></tr>
+      <tr><td>GRADUATION_APP</td><td>appID (UUID)</td><td>studentID, processedBy (Registrar)</td><td>status ENUM(pending, approved, rejected)</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- SECTION 4 -->
+<!-- ══════════════════════════════════════════════ -->
+<section id="s4">
+  <div class="sec-num">SECTION 04</div>
+  <h2 class="sec-title">Detailed Design</h2>
+  <p>Pseudo-code is provided for every major system method. Conventions: <code>→</code> returns, <span style="color:var(--accent);font-family:var(--mono)">RAISE</span> throws an application error, <span style="font-family:var(--mono)">DB.*</span> denotes data-access operations.</p>
+  <div class="callout info">Naming: methods prefixed with <code>check*</code> are triggered automatically by the system (no user action required). Methods prefixed with <code>process*</code> require registrar action.</div>
+
+  <!-- M01 -->
+  <div class="method-header" id="m01">
+    <span class="mname">applyForAdmission</span>
+    <span class="mio">INPUT: name, email, type, priorGpa?, statement? → Application</span>
+  </div>
+  <div class="pseudo"><span class="kw">METHOD</span> <span class="fn">applyForAdmission</span>(name: <span class="type">String</span>, email: <span class="type">String</span>, type: <span class="type">Enum</span>{student|instructor},
+                     priorGpa: <span class="type">Decimal?</span>, statement: <span class="type">String?</span>) → <span class="type">Application</span>
+
+  <span class="cm">// Validate inputs</span>
+  <span class="kw">IF</span> DB.USER.exists(email) <span class="kw">THEN</span> <span class="acc">RAISE</span> "Account already exists for this email"
+  <span class="kw">IF</span> type == <span class="lit">"student"</span> <span class="kw">AND</span> priorGpa <span class="kw">IS NULL</span> <span class="kw">THEN</span> <span class="acc">RAISE</span> "GPA required for student application"
+  <span class="kw">IF</span> name.length == 0 OR email.length == 0 <span class="kw">THEN</span> <span class="acc">RAISE</span> "Name and email are required"
+
+  app ← DB.APPLICATION.create({name, email, type, priorGpa, statement,
+                                 status: <span class="lit">"PENDING"</span>, createdAt: NOW()})
+
+  <span class="cm">// Auto-screening for student applications only</span>
+  <span class="kw">IF</span> type == <span class="lit">"student"</span> <span class="kw">THEN</span>
+    quota ← DB.STUDENT.count(isActive: <span class="kw">TRUE</span>) &lt; SYSTEM.MAX_STUDENTS
+    <span class="kw">IF</span> priorGpa > <span class="lit">3.0</span> <span class="kw">AND</span> quota <span class="kw">THEN</span>
+      app.status ← <span class="lit">"AUTO_ACCEPTED"</span>
+      <span class="fn">_createStudentAccount</span>(app)
+    <span class="kw">ELSE</span>
+      app.status ← <span class="lit">"PENDING_REGISTRAR"</span>
+      <span class="fn">notifyRegistrar</span>(app)
+    <span class="kw">END IF</span>
+  <span class="kw">ELSE</span>  <span class="cm">// instructor — always goes to registrar</span>
+    app.status ← <span class="lit">"PENDING_REGISTRAR"</span>
+    <span class="fn">notifyRegistrar</span>(app)
+  <span class="kw">END IF</span>
+
+  DB.APPLICATION.save(app)
+  <span class="kw">RETURN</span> app
+
+<span class="kw">PRIVATE METHOD</span> <span class="fn">_createStudentAccount</span>(app: <span class="type">Application</span>) → <span class="type">Student</span>
+  tempPassword ← <span class="fn">generateSecureToken</span>(16)
+  user ← DB.USER.create({username: <span class="fn">deriveUsername</span>(app.name, app.email),
+                           email: app.email, passwordHash: <span class="fn">bcrypt</span>(tempPassword),
+                           role: <span class="lit">"student"</span>, isActive: <span class="kw">TRUE</span>, firstLogin: <span class="kw">TRUE</span>})
+  studentID ← <span class="lit">"s-"</span> + <span class="fn">zeroPad</span>(DB.STUDENT.nextSequence(), 5)
+  student ← DB.STUDENT.create({studentID, userID: user.userID,
+                                 gpa: <span class="lit">0.0</span>, completedClasses: <span class="lit">0</span>, honorCount: <span class="lit">0</span>,
+                                 isTerminated: <span class="kw">FALSE</span>})
+  <span class="fn">emailCredentials</span>(app.email, studentID, tempPassword)
+  <span class="kw">RETURN</span> student</div>
+
+  <!-- M02 -->
+  <div class="method-header" id="m02">
+    <span class="mname">processApplication</span>
+    <span class="mio">INPUT: registrarId, applicationId, decision, justification? → void</span>
+  </div>
+  <div class="pseudo"><span class="kw">METHOD</span> <span class="fn">processApplication</span>(registrarId: <span class="type">UUID</span>, applicationId: <span class="type">UUID</span>,
+                       decision: <span class="type">Enum</span>{accept|reject}, justification: <span class="type">String?</span>)
+
+  reg  ← DB.REGISTRAR.find(registrarId) or <span class="acc">RAISE</span> "Unauthorised"
+  app  ← DB.APPLICATION.find(applicationId) or <span class="acc">RAISE</span> "Application not found"
+  <span class="kw">IF</span> app.status NOT IN [<span class="lit">"PENDING_REGISTRAR"</span>] <span class="kw">THEN</span> <span class="acc">RAISE</span> "Application already processed"
+
+  <span class="cm">// Rule-deviation guard: justify if deviating from GPA rule</span>
+  <span class="kw">IF</span> app.type == <span class="lit">"student"</span> <span class="kw">THEN</span>
+    quota ← DB.STUDENT.count(isActive: <span class="kw">TRUE</span>) &lt; SYSTEM.MAX_STUDENTS
+    ruleWouldAccept ← app.priorGpa > <span class="lit">3.0</span> <span class="kw">AND</span> quota
+    <span class="kw">IF</span> (decision == <span class="lit">"reject"</span> <span class="kw">AND</span> ruleWouldAccept) OR
+       (decision == <span class="lit">"accept"</span> <span class="kw">AND</span> NOT ruleWouldAccept) <span class="kw">THEN</span>
+      <span class="kw">IF</span> justification <span class="kw">IS NULL OR</span> justification.length &lt; <span class="lit">20</span> <span class="kw">THEN</span>
+        <span class="acc">RAISE</span> "Justification required when deviating from GPA / quota rule"
+      <span class="kw">END IF</span>
+    <span class="kw">END IF</span>
+  <span class="kw">END IF</span>
+
+  app.status      ← decision == <span class="lit">"accept"</span> ? <span class="lit">"ACCEPTED"</span> : <span class="lit">"REJECTED"</span>
+  app.justification ← justification
+  app.processedBy ← registrarId
+  app.processedAt ← NOW()
+  DB.APPLICATION.save(app)
+
+  <span class="kw">IF</span> decision == <span class="lit">"accept"</span> <span class="kw">THEN</span>
+    <span class="kw">IF</span> app.type == <span class="lit">"student"</span> <span class="kw">THEN</span> <span class="fn">_createStudentAccount</span>(app)
+    <span class="kw">ELSE</span>                          <span class="fn">_createInstructorAccount</span>(app)
+    <span class="kw">END IF</span>
+  <span class="kw">END IF</span>
+  <span class="fn">notifyApplicant</span>(app)</div>
+
+  <!-- M03 -->
+  <div class="method-header" id="m03">
+    <span class="mname">registerCourses</span>
+    <span class="mio">INPUT: studentId, semesterId, courseIds[] → RegistrationResult</span>
+  </div>
+  <div class="pseudo"><span class="kw">METHOD</span> <span class="fn">registerCourses</span>(studentId: <span class="type">UUID</span>, semesterId: <span class="type">UUID</span>,
+                   courseIds: <span class="type">UUID[]</span>) → <span class="type">RegistrationResult</span>
+
+  student ← DB.STUDENT.find(studentId) or <span class="acc">RAISE</span> "Student not found"
+  sem     ← DB.SEMESTER.find(semesterId) or <span class="acc">RAISE</span> "Semester not found"
+  <span class="kw">IF</span> sem.currentPhase NOT IN [<span class="lit">2</span>, <span class="lit">2.5</span>] <span class="kw">THEN</span>  <span class="cm">// 2=registration, 2.5=special</span>
+    <span class="acc">RAISE</span> "Registration is not open in the current semester phase"
+  <span class="kw">IF</span> student.isSuspended OR student.isTerminated <span class="kw">THEN</span>
+    <span class="acc">RAISE</span> "Suspended or terminated students may not register"
+  <span class="kw">IF</span> courseIds.length &lt; <span class="lit">2</span> OR courseIds.length > <span class="lit">4</span> <span class="kw">THEN</span>
+    <span class="acc">RAISE</span> "Must register for 2 to 4 courses"
+
+  enrollments ← []
+  registeredSlots ← []  <span class="cm">// [{day, start, end}] for conflict detection</span>
+
+  <span class="kw">FOR EACH</span> cid <span class="kw">IN</span> courseIds <span class="kw">DO</span>
+    course ← DB.COURSE.find(cid) or <span class="acc">RAISE</span> "Course " + cid + " not found"
+    <span class="kw">IF</span> course.status == <span class="lit">"CANCELLED"</span> <span class="kw">THEN</span> <span class="acc">RAISE</span> cid + " is cancelled"
+
+    <span class="cm">// Retake guard</span>
+    prior ← DB.ENROLLMENT.find(studentId, cid, status: <span class="lit">"graded"</span>)
+    <span class="kw">IF</span> prior EXISTS AND prior.grade != <span class="lit">"F"</span> <span class="kw">THEN</span>
+      <span class="acc">RAISE</span> "Cannot retake a passed course"
+
+    <span class="cm">// Time conflict check</span>
+    <span class="kw">FOR EACH</span> slot <span class="kw">IN</span> registeredSlots <span class="kw">DO</span>
+      <span class="kw">IF</span> <span class="fn">overlaps</span>(course.schedule, slot) <span class="kw">THEN</span>
+        <span class="acc">RAISE</span> "Time conflict between " + cid + " and existing selection"
+    <span class="kw">END FOR</span>
+    registeredSlots.append(course.schedule)
+
+    <span class="cm">// Capacity check</span>
+    <span class="kw">IF</span> course.enrolled >= course.capacity <span class="kw">THEN</span>
+      <span class="kw">RETURN</span> {type: <span class="lit">"WAITLIST_OFFER"</span>, courseId: cid}
+    <span class="kw">END IF</span>
+
+    enrollment ← DB.ENROLLMENT.create({studentId, courseId: cid, semesterId,
+                                         status: <span class="lit">"ENROLLED"</span>, registeredAt: NOW()})
+    course.enrolled++
+    DB.COURSE.save(course)
+    enrollments.append(enrollment)
+  <span class="kw">END FOR</span>
+
+  <span class="kw">RETURN</span> {type: <span class="lit">"SUCCESS"</span>, enrollments}</div>
+
+  <!-- M04 -->
+  <div class="method-header" id="m04">
+    <span class="mname">addToWaitList</span>
+    <span class="mio">INPUT: studentId, courseId → WaitListEntry</span>
+  </div>
+  <div class="pseudo"><span class="kw">METHOD</span> <span class="fn">addToWaitList</span>(studentId: <span class="type">UUID</span>, courseId: <span class="type">UUID</span>) → <span class="type">WaitListEntry</span>
+
+  <span class="kw">IF</span> DB.WAITLIST.exists(studentId, courseId) <span class="kw">THEN</span>
+    <span class="acc">RAISE</span> "Already on wait-list for this course"
+  position ← DB.WAITLIST.count(courseId) + <span class="lit">1</span>
+  entry ← DB.WAITLIST.create({studentId, courseId, position, addedAt: NOW()})
+  <span class="fn">notifyStudent</span>(studentId, "You are #" + position + " on the wait-list for " + courseId)
+  <span class="kw">RETURN</span> entry</div>
+
+  <!-- M05 -->
+  <div class="method-header" id="m05">
+    <span class="mname">processWaitListEntry</span>
+    <span class="mio">INPUT: instructorId, waitlistId, decision → void</span>
+  </div>
+  <div class="pseudo"><span class="kw">METHOD</span> <span class="fn">processWaitListEntry</span>(instructorId: <span class="type">UUID</span>, waitlistId: <span class="type">UUID</span>,
+                          decision: <span class="type">Enum</span>{admit|skip})
+
+  wl  ← DB.WAITLIST.find(waitlistId) or <span class="acc">RAISE</span> "Wait-list entry not found"
+  ins ← DB.INSTRUCTOR.find(instructorId)
+  <span class="kw">IF</span> ins.courseIds NOT CONTAINS wl.courseId <span class="kw">THEN</span>
+    <span class="acc">RAISE</span> "Instructor does not teach this course"
+
+  <span class="kw">IF</span> decision == <span class="lit">"admit"</span> <span class="kw">THEN</span>
+    <span class="cm">// Check student won't exceed 4-course cap</span>
+    currentCount ← DB.ENROLLMENT.count(wl.studentId, status: <span class="lit">"ENROLLED"</span>)
+    <span class="kw">IF</span> currentCount >= <span class="lit">4</span> <span class="kw">THEN</span>
+      <span class="acc">RAISE</span> "Student already enrolled in 4 courses"
+    enrollment ← DB.ENROLLMENT.create({studentId: wl.studentId, courseId: wl.courseId,
+                                         status: <span class="lit">"ENROLLED"</span>})
+    DB.COURSE.incrementEnrolled(wl.courseId)
+    DB.WAITLIST.delete(waitlistId)
+    <span class="cm">// Re-sequence remaining wait-list positions</span>
+    <span class="fn">resequenceWaitList</span>(wl.courseId)
+    <span class="fn">notifyStudent</span>(wl.studentId, "You have been admitted to " + wl.courseId)
+  <span class="kw">ELSE</span>
+    <span class="cm">// Skip — student stays on list, position unchanged</span>
+    <span class="fn">notifyStudent</span>(wl.studentId, "Your wait-list position for " + wl.courseId + " is unchanged")
+  <span class="kw">END IF</span></div>
+
+  <!-- M06 -->
+  <div class="method-header" id="m06">
+    <span class="mname">writeReview</span>
+    <span class="mio">INPUT: studentId, courseId, stars, body → Review</span>
+  </div>
+  <div class="pseudo"><span class="kw">METHOD</span> <span class="fn">writeReview</span>(studentId: <span class="type">UUID</span>, courseId: <span class="type">UUID</span>,
+              stars: <span class="type">Int</span>, body: <span class="type">String</span>) → <span class="type">Review</span>
+
+  enrollment ← DB.ENROLLMENT.find(studentId, courseId, status: <span class="lit">"ENROLLED"</span>)
+    or <span class="acc">RAISE</span> "Student is not enrolled in this course"
+  <span class="kw">IF</span> DB.GRADE.exists(enrollmentId: enrollment.id) <span class="kw">THEN</span>
+    <span class="acc">RAISE</span> "Reviews are closed once the instructor has posted your grade"
+  <span class="kw">IF</span> DB.REVIEW.exists(studentId, courseId) <span class="kw">THEN</span>
+    <span class="acc">RAISE</span> "You have already submitted a review for this course"
+  <span class="kw">IF</span> stars NOT IN [<span class="lit">1</span>..<span class="lit">5</span>] <span class="kw">THEN</span> <span class="acc">RAISE</span> "Rating must be 1–5 stars"
+
+  filterResult ← <span class="fn">filterTabooWords</span>(body)
+
+  review ← DB.REVIEW.create({
+    studentId, courseId,
+    stars,
+    body,
+    filteredBody: filterResult.filtered,
+    tabooCount:   filterResult.count,
+    isVisible:    filterResult.count &lt; <span class="lit">3</span>,
+    createdAt:    NOW()
+  })
+
+  <span class="cm">// Apply warnings to author based on taboo count</span>
+  <span class="kw">IF</span> filterResult.count >= <span class="lit">3</span> <span class="kw">THEN</span>
+    <span class="fn">issueWarning</span>(<span class="kw">SYSTEM</span>, studentId, <span class="lit">"student"</span>, <span class="lit">"Review contained ≥ 3 taboo words"</span>)
+    <span class="fn">issueWarning</span>(<span class="kw">SYSTEM</span>, studentId, <span class="lit">"student"</span>, <span class="lit">"Review hidden — 2nd warning for same review"</span>)
+  <span class="kw">ELSE IF</span> filterResult.count IN [<span class="lit">1</span>, <span class="lit">2</span>] <span class="kw">THEN</span>
+    <span class="fn">issueWarning</span>(<span class="kw">SYSTEM</span>, studentId, <span class="lit">"student"</span>, <span class="lit">"Review contained taboo word(s)"</span>)
+  <span class="kw">END IF</span>
+
+  <span class="cm">// Recompute course average and check instructor warning threshold</span>
+  <span class="fn">recomputeAvgRating</span>(courseId)
+  course ← DB.COURSE.find(courseId)
+  <span class="kw">IF</span> course.avgRating &lt; <span class="lit">2.0</span> <span class="kw">THEN</span>
+    <span class="fn">issueWarning</span>(<span class="kw">SYSTEM</span>, course.instructorId, <span class="lit">"instructor"</span>,
+                  <span class="lit">"Class avg rating fell below 2.0 in "</span> + courseId)
+    <span class="fn">checkInstructorWarnings</span>(course.instructorId)
+  <span class="kw">END IF</span>
+  <span class="kw">RETURN</span> review</div>
+
+  <!-- M07 -->
+  <div class="method-header" id="m07">
+    <span class="mname">filterTabooWords</span>
+    <span class="mio">INPUT: text → {filtered: String, count: Int}</span>
+  </div>
+  <div class="pseudo"><span class="kw">METHOD</span> <span class="fn">filterTabooWords</span>(text: <span class="type">String</span>) → {filtered: <span class="type">String</span>, count: <span class="type">Int</span>}
+
+  tabooList ← DB.TABOO_WORD.all().map(w → w.word.toLowerCase())
+  words     ← text.split(<span class="lit">/\W+/</span>)
+  count     ← <span class="lit">0</span>
+  filtered  ← text
+
+  <span class="kw">FOR EACH</span> word <span class="kw">IN</span> tabooList <span class="kw">DO</span>
+    pattern ← <span class="fn">RegExp</span>(word, <span class="lit">"gi"</span>)
+    matches ← text.match(pattern)
+    <span class="kw">IF</span> matches <span class="kw">THEN</span>
+      count    ← count + matches.length
+      filtered ← filtered.replace(pattern, <span class="lit">"****"</span>)
+    <span class="kw">END IF</span>
+  <span class="kw">END FOR</span>
+
+  <span class="kw">RETURN</span> {filtered, count}</div>
+
+  <!-- M08 -->
+  <div class="method-header" id="m08">
+    <span class="mname">assignGrade</span>
+    <span class="mio">INPUT: instructorId, enrollmentId, letterGrade → Grade</span>
+  </div>
+  <div class="pseudo"><span class="kw">METHOD</span> <span class="fn">assignGrade</span>(instructorId: <span class="type">UUID</span>, enrollmentId: <span class="type">UUID</span>,
+              letterGrade: <span class="type">String</span>) → <span class="type">Grade</span>
+
+  VALID_GRADES ← [<span class="lit">"A"</span>, <span class="lit">"A-"</span>, <span class="lit">"B+"</span>, <span class="lit">"B"</span>, <span class="lit">"B-"</span>, <span class="lit">"C+"</span>, <span class="lit">"C"</span>, <span class="lit">"F"</span>]
+  <span class="kw">IF</span> letterGrade NOT IN VALID_GRADES <span class="kw">THEN</span> <span class="acc">RAISE</span> "Invalid grade"
+
+  sem ← DB.SEMESTER.active()
+  <span class="kw">IF</span> sem.currentPhase != <span class="lit">4</span> <span class="kw">THEN</span> <span class="acc">RAISE</span> "Grading period is not open"
+
+  enrollment ← DB.ENROLLMENT.find(enrollmentId) or <span class="acc">RAISE</span> "Enrollment not found"
+  course     ← DB.COURSE.find(enrollment.courseId)
+  <span class="kw">IF</span> course.instructorId != instructorId <span class="kw">THEN</span> <span class="acc">RAISE</span> "Not your course"
+  <span class="kw">IF</span> DB.GRADE.exists(enrollmentId) <span class="kw">THEN</span> <span class="acc">RAISE</span> "Grade already posted"
+
+  gp    ← GPA_SCALE[letterGrade]  <span class="cm">// A=4.0, A-=3.67, B+=3.33 …</span>
+  grade ← DB.GRADE.create({enrollmentId, letterGrade, gradePoints: gp,
+                              postedBy: instructorId, postedAt: NOW()})
+
+  <span class="cm">// Cascade: update GPA and check consequences</span>
+  <span class="fn">computeStudentGPA</span>(enrollment.studentId)
+  <span class="fn">checkStudentStanding</span>(enrollment.studentId)
+  <span class="fn">checkHonorRoll</span>(enrollment.studentId, sem.semesterID)
+
+  <span class="kw">RETURN</span> grade
+
+<span class="cm">// Called after all grades posted for a course:</span>
+<span class="kw">METHOD</span> <span class="fn">finaliseGradePosting</span>(courseId: <span class="type">UUID</span>)
+  <span class="fn">checkGradeDistribution</span>(courseId)
+  <span class="cm">// Close review window</span>
+  DB.COURSE.update(courseId, {reviewsClosed: <span class="kw">TRUE</span>})</div>
+
+  <!-- M09 -->
+  <div class="method-header" id="m09">
+    <span class="mname">checkGradeDistribution</span>
+    <span class="mio">INPUT: courseId → GradeDistributionCheck</span>
+  </div>
+  <div class="pseudo"><span class="kw">METHOD</span> <span class="fn">checkGradeDistribution</span>(courseId: <span class="type">UUID</span>) → <span class="type">GradeDistributionCheck</span>
+
+  grades  ← DB.GRADE.findByCourse(courseId)
+  <span class="kw">IF</span> grades.length == <span class="lit">0</span> <span class="kw">THEN RETURN</span> {status: <span class="lit">"NO_GRADES"</span>}
+
+  avgGpa  ← grades.sum(g → g.gradePoints) / grades.length
+  LOW     ← <span class="lit">2.5</span>
+  HIGH    ← <span class="lit">3.5</span>
+
+  <span class="kw">IF</span> avgGpa >= LOW <span class="kw">AND</span> avgGpa &lt;= HIGH <span class="kw">THEN</span>
+    <span class="kw">RETURN</span> {status: <span class="lit">"IN_BAND"</span>, avg: avgGpa}
+  <span class="kw">END IF</span>
+
+  <span class="cm">// Out of band: flag for registrar and request justification from instructor</span>
+  course ← DB.COURSE.find(courseId)
+  DB.GRADE_FLAG.create({courseId, avg: avgGpa, flaggedAt: NOW(),
+                          justificationDeadline: NOW() + <span class="lit">5 days</span>})
+  <span class="fn">notifyRegistrar</span>(<span class="lit">"Grade distribution out of band: "</span> + courseId +
+                    <span class="lit">" avg="</span> + avgGpa)
+  <span class="fn">notifyInstructor</span>(course.instructorId,
+                    <span class="lit">"Your class GPA of "</span> + avgGpa + <span class="lit">" requires justification within 5 days"</span>)
+  <span class="kw">RETURN</span> {status: <span class="lit">"FLAGGED"</span>, avg: avgGpa}</div>
+
+  <!-- M10 -->
+  <div class="method-header" id="m10">
+    <span class="mname">computeStudentGPA</span>
+    <span class="mio">INPUT: studentId → {cumGPA, semGPA}</span>
+  </div>
+  <div class="pseudo"><span class="kw">METHOD</span> <span class="fn">computeStudentGPA</span>(studentId: <span class="type">UUID</span>) → {cumGPA: <span class="type">Decimal</span>, semGPA: <span class="type">Decimal</span>}
+
+  allGrades ← DB.GRADE.findByStudent(studentId)  <span class="cm">// all historical</span>
+  semGrades ← allGrades.filter(g → g.semesterId == DB.SEMESTER.active().id)
+
+  <span class="kw">IF</span> allGrades.length == <span class="lit">0</span> <span class="kw">THEN RETURN</span> {cumGPA: <span class="lit">0.0</span>, semGPA: <span class="lit">0.0</span>}
+
+  cumGPA ← allGrades.sum(g → g.gradePoints) / allGrades.length
+  semGPA ← semGrades.length > <span class="lit">0</span>
+           ? semGrades.sum(g → g.gradePoints) / semGrades.length
+           : <span class="lit">0.0</span>
+
+  DB.STUDENT.update(studentId, {gpa: cumGPA, semesterGpa: semGPA,
+                                  completedClasses: allGrades.length})
+  <span class="kw">RETURN</span> {cumGPA, semGPA}</div>
+
+  <!-- M11 -->
+  <div class="method-header" id="m11">
+    <span class="mname">checkStudentStanding</span>
+    <span class="mio">INPUT: studentId → StandingResult</span>
+  </div>
+  <div class="pseudo"><span class="kw">METHOD</span> <span class="fn">checkStudentStanding</span>(studentId: <span class="type">UUID</span>) → <span class="type">StandingResult</span>
+
+  student ← DB.STUDENT.find(studentId)
+
+  <span class="cm">// Auto-termination conditions (BR-03)</span>
+  failedTwice ← DB.ENROLLMENT.findDuplicateF(studentId)  <span class="cm">// same course F twice</span>
+  <span class="kw">IF</span> student.gpa &lt; <span class="lit">2.0</span> OR failedTwice <span class="kw">THEN</span>
+    DB.STUDENT.update(studentId, {isTerminated: <span class="kw">TRUE</span>, isActive: <span class="kw">FALSE</span>})
+    <span class="fn">notifyStudent</span>(studentId, <span class="lit">"Your enrollment has been terminated."</span>)
+    <span class="fn">notifyRegistrar</span>(<span class="lit">"Student "</span> + studentId + <span class="lit">" auto-terminated."</span>)
+    <span class="kw">RETURN</span> {status: <span class="lit">"TERMINATED"</span>}
+  <span class="kw">END IF</span>
+
+  <span class="cm">// Warning zone (BR-04)</span>
+  <span class="kw">IF</span> student.gpa >= <span class="lit">2.0</span> <span class="kw">AND</span> student.gpa &lt; <span class="lit">2.25</span> <span class="kw">THEN</span>
+    <span class="fn">issueWarning</span>(<span class="kw">SYSTEM</span>, studentId, <span class="lit">"student"</span>,
+                  <span class="lit">"GPA between 2.0–2.25; interview with registrar required"</span>)
+    <span class="kw">RETURN</span> {status: <span class="lit">"WARNING_INTERVIEW"</span>}
+  <span class="kw">END IF</span>
+
+  <span class="cm">// Suspension threshold (BR-12)</span>
+  <span class="kw">IF</span> student.warningCount >= <span class="lit">3</span> <span class="kw">THEN</span>
+    DB.STUDENT.update(studentId, {suspendedUntil: <span class="fn">nextSemesterStart</span>()})
+    <span class="fn">flagFineForRegistrar</span>(studentId)
+    <span class="fn">notifyStudent</span>(studentId, <span class="lit">"Suspended 1 semester; fine outstanding."</span>)
+    <span class="kw">RETURN</span> {status: <span class="lit">"SUSPENDED"</span>}
+  <span class="kw">END IF</span>
+
+  <span class="kw">RETURN</span> {status: <span class="lit">"GOOD_STANDING"</span>}</div>
+
+  <!-- M12 -->
+  <div class="method-header" id="m12">
+    <span class="mname">checkHonorRoll</span>
+    <span class="mio">INPUT: studentId, semesterId → void</span>
+  </div>
+  <div class="pseudo"><span class="kw">METHOD</span> <span class="fn">checkHonorRoll</span>(studentId: <span class="type">UUID</span>, semesterId: <span class="type">UUID</span>)
+
+  student ← DB.STUDENT.find(studentId)
+  semCount ← DB.SEMESTER.countForStudent(studentId)  <span class="cm">// semesters completed</span>
+
+  semHonor ← student.semesterGpa >= <span class="lit">3.75</span>
+  cumHonor ← semCount > <span class="lit">1</span> <span class="kw">AND</span> student.gpa > <span class="lit">3.5</span>
+
+  <span class="kw">IF</span> semHonor OR cumHonor <span class="kw">THEN</span>
+    honorType ← semHonor ? <span class="lit">"semester"</span> : <span class="lit">"cumulative"</span>
+    <span class="cm">// Avoid duplicate honor for same semester + type</span>
+    <span class="kw">IF NOT</span> DB.HONOR.exists(studentId, semesterId, honorType) <span class="kw">THEN</span>
+      DB.HONOR.create({studentId, semesterId, type: honorType,
+                        usedToRetire: <span class="kw">NULL</span>, awardedAt: NOW()})
+      student.honorCount++
+      DB.STUDENT.save(student)
+      <span class="fn">notifyStudent</span>(studentId, <span class="lit">"Honor roll awarded! You may redeem it to clear one warning."</span>)
+    <span class="kw">END IF</span>
+  <span class="kw">END IF</span></div>
+
+  <!-- M13 -->
+  <div class="method-header" id="m13">
+    <span class="mname">issueWarning</span>
+    <span class="mio">INPUT: issuedById, targetId, targetType, reason → Warning</span>
+  </div>
+  <div class="pseudo"><span class="kw">METHOD</span> <span class="fn">issueWarning</span>(issuedById: <span class="type">UUID|SYSTEM</span>, targetId: <span class="type">UUID</span>,
+              targetType: <span class="type">Enum</span>{student|instructor}, reason: <span class="type">String</span>) → <span class="type">Warning</span>
+
+  warning ← DB.WARNING.create({targetId, targetType, reason,
+                                  issuedBy: issuedById, isRetired: <span class="kw">FALSE</span>,
+                                  issuedAt: NOW()})
+  <span class="cm">// Increment counter on target entity</span>
+  <span class="kw">IF</span> targetType == <span class="lit">"student"</span> <span class="kw">THEN</span>
+    DB.STUDENT.incrementWarning(targetId)
+    <span class="fn">checkStudentStanding</span>(targetId)
+  <span class="kw">ELSE</span>
+    DB.INSTRUCTOR.incrementWarning(targetId)
+    <span class="fn">checkInstructorWarnings</span>(targetId)
+  <span class="kw">END IF</span>
+
+  <span class="fn">notifyTarget</span>(targetId, <span class="lit">"Warning issued: "</span> + reason)
+  <span class="kw">RETURN</span> warning</div>
+
+  <!-- M14 -->
+  <div class="method-header" id="m14">
+    <span class="mname">redeemHonorCredit</span>
+    <span class="mio">INPUT: studentId, honorId, warningId → void</span>
+  </div>
+  <div class="pseudo"><span class="kw">METHOD</span> <span class="fn">redeemHonorCredit</span>(studentId: <span class="type">UUID</span>, honorId: <span class="type">UUID</span>, warningId: <span class="type">UUID</span>)
+
+  honor   ← DB.HONOR.find(honorId) or <span class="acc">RAISE</span> "Honor not found"
+  warning ← DB.WARNING.find(warningId) or <span class="acc">RAISE</span> "Warning not found"
+
+  <span class="kw">IF</span> honor.studentId != studentId OR warning.targetId != studentId <span class="kw">THEN</span>
+    <span class="acc">RAISE</span> "Honour or warning does not belong to this student"
+  <span class="kw">IF</span> honor.usedToRetire IS NOT NULL <span class="kw">THEN</span>
+    <span class="acc">RAISE</span> "This honor credit has already been used"
+  <span class="kw">IF</span> warning.isRetired <span class="kw">THEN</span>
+    <span class="acc">RAISE</span> "Warning is already retired"
+
+  honor.usedToRetire ← warningId
+  warning.isRetired  ← <span class="kw">TRUE</span>
+  DB.HONOR.save(honor)
+  DB.WARNING.save(warning)
+  DB.STUDENT.decrementWarning(studentId)
+  <span class="fn">notifyRegistrar</span>(<span class="lit">"Student "</span> + studentId + <span class="lit">" redeemed honor to retire warning "</span> + warningId)</div>
+
+  <!-- M15 -->
+  <div class="method-header" id="m15">
+    <span class="mname">submitComplaint</span>
+    <span class="mio">INPUT: fromId, fromType, targetId, targetType, description → Complaint</span>
+  </div>
+  <div class="pseudo"><span class="kw">METHOD</span> <span class="fn">submitComplaint</span>(fromId: <span class="type">UUID</span>, fromType: <span class="type">Enum</span>, targetId: <span class="type">UUID</span>,
+                  targetType: <span class="type">Enum</span>, description: <span class="type">String</span>) → <span class="type">Complaint</span>
+
+  <span class="kw">IF</span> description.length &lt; <span class="lit">20</span> <span class="kw">THEN</span> <span class="acc">RAISE</span> "Description too short"
+  <span class="kw">IF</span> DB.COMPLAINT.exists(fromId, targetId, status: <span class="lit">"PENDING"</span>) <span class="kw">THEN</span>
+    <span class="acc">RAISE</span> "A complaint against this person is already pending"
+
+  complaint ← DB.COMPLAINT.create({fromId, fromType, targetId, targetType,
+                                     description, status: <span class="lit">"PENDING"</span>, createdAt: NOW()})
+  <span class="fn">notifyRegistrar</span>(<span class="lit">"New complaint from "</span> + fromId + <span class="lit">" against "</span> + targetId)
+  <span class="kw">RETURN</span> complaint</div>
+
+  <!-- M16 -->
+  <div class="method-header" id="m16">
+    <span class="mname">processComplaint</span>
+    <span class="mio">INPUT: registrarId, complaintId, action, note → void</span>
+  </div>
+  <div class="pseudo"><span class="kw">METHOD</span> <span class="fn">processComplaint</span>(registrarId: <span class="type">UUID</span>, complaintId: <span class="type">UUID</span>,
+                    action: <span class="type">Enum</span>{warn_target|deregister_target|warn_complainant|dismiss},
+                    note: <span class="type">String</span>)
+
+  complaint ← DB.COMPLAINT.find(complaintId) or <span class="acc">RAISE</span> "Complaint not found"
+  <span class="kw">IF</span> complaint.status != <span class="lit">"PENDING"</span> <span class="kw">THEN</span> <span class="acc">RAISE</span> "Already resolved"
+
+  <span class="cm">// Instructor complaints require mandatory action (BR-10)</span>
+  <span class="kw">IF</span> complaint.fromType == <span class="lit">"instructor"</span> <span class="kw">AND</span> action == <span class="lit">"dismiss"</span> <span class="kw">THEN</span>
+    <span class="cm">// Dismissal of instructor complaint = warn the instructor</span>
+    action ← <span class="lit">"warn_complainant"</span>
+  <span class="kw">END IF</span>
+
+  <span class="kw">SWITCH</span> action
+    <span class="kw">CASE</span> <span class="lit">"warn_target"</span>:
+      <span class="fn">issueWarning</span>(registrarId, complaint.targetId, complaint.targetType, note)
+    <span class="kw">CASE</span> <span class="lit">"deregister_target"</span>:
+      DB.STUDENT.update(complaint.targetId, {isActive: <span class="kw">FALSE</span>, isTerminated: <span class="kw">TRUE</span>})
+    <span class="kw">CASE</span> <span class="lit">"warn_complainant"</span>:
+      <span class="fn">issueWarning</span>(registrarId, complaint.fromId, complaint.fromType,
+                    <span class="lit">"Complaint found frivolous / instructor penalised: "</span> + note)
+    <span class="kw">CASE</span> <span class="lit">"dismiss"</span>:
+      <span class="kw">BREAK</span>  <span class="cm">// no-op (only valid for student complainants)</span>
+  <span class="kw">END SWITCH</span>
+
+  complaint.status     ← <span class="lit">"RESOLVED"</span>
+  complaint.resolvedBy ← registrarId
+  complaint.resolvedAt ← NOW()
+  DB.COMPLAINT.save(complaint)
+  <span class="fn">notifyBothParties</span>(complaint)</div>
+
+  <!-- M17 -->
+  <div class="method-header" id="m17">
+    <span class="mname">applyForGraduation</span>
+    <span class="mio">INPUT: studentId → GraduationApplication</span>
+  </div>
+  <div class="pseudo"><span class="kw">METHOD</span> <span class="fn">applyForGraduation</span>(studentId: <span class="type">UUID</span>) → <span class="type">GraduationApplication</span>
+
+  student ← DB.STUDENT.find(studentId)
+  <span class="kw">IF</span> student.completedClasses &lt; <span class="lit">8</span> <span class="kw">THEN</span>
+    <span class="acc">RAISE</span> "You need 8 completed classes to apply. Current: " + student.completedClasses
+  <span class="kw">IF</span> DB.GRADUATION_APP.exists(studentId, status: <span class="lit">"PENDING"</span>) <span class="kw">THEN</span>
+    <span class="acc">RAISE</span> "A graduation application is already pending"
+
+  app ← DB.GRADUATION_APP.create({studentId, status: <span class="lit">"PENDING"</span>, appliedAt: NOW()})
+  <span class="fn">notifyRegistrar</span>(<span class="lit">"Graduation application from "</span> + studentId)
+  <span class="kw">RETURN</span> app</div>
+
+  <!-- M18 -->
+  <div class="method-header" id="m18">
+    <span class="mname">processGraduation</span>
+    <span class="mio">INPUT: registrarId, appId, decision, note → void</span>
+  </div>
+  <div class="pseudo"><span class="kw">METHOD</span> <span class="fn">processGraduation</span>(registrarId: <span class="type">UUID</span>, appId: <span class="type">UUID</span>,
+                    decision: <span class="type">Enum</span>{approve|reject}, note: <span class="type">String?</span>)
+
+  app     ← DB.GRADUATION_APP.find(appId) or <span class="acc">RAISE</span> "App not found"
+  student ← DB.STUDENT.find(app.studentId)
+  <span class="kw">IF</span> app.status != <span class="lit">"PENDING"</span> <span class="kw">THEN</span> <span class="acc">RAISE</span> "Already processed"
+
+  <span class="kw">IF</span> decision == <span class="lit">"approve"</span> <span class="kw">THEN</span>
+    <span class="cm">// Verify required courses manually checked by registrar</span>
+    DB.STUDENT.update(app.studentId, {isActive: <span class="kw">FALSE</span>, graduatedAt: NOW(),
+                                       degree: <span class="lit">"Bachelor of Arts, College0"</span>})
+    app.status ← <span class="lit">"APPROVED"</span>
+    <span class="fn">notifyStudent</span>(app.studentId, <span class="lit">"Congratulations! You have graduated."</span>)
+  <span class="kw">ELSE</span>  <span class="cm">// reject — reckless application → 1 warning (BR-10)</span>
+    app.status ← <span class="lit">"REJECTED"</span>
+    app.registrarNote ← note
+    <span class="fn">issueWarning</span>(registrarId, app.studentId, <span class="lit">"student"</span>,
+                  <span class="lit">"Reckless graduation application: "</span> + note)
+    <span class="fn">notifyStudent</span>(app.studentId, <span class="lit">"Graduation application rejected: "</span> + note)
+  <span class="kw">END IF</span>
+
+  app.processedBy ← registrarId
+  app.processedAt ← NOW()
+  DB.GRADUATION_APP.save(app)</div>
+
+  <!-- M19 -->
+  <div class="method-header" id="m19">
+    <span class="mname">cancelUnderstaffedCourses</span>
+    <span class="mio">INPUT: semesterId → CancelledCourse[]</span>
+  </div>
+  <div class="pseudo"><span class="kw">METHOD</span> <span class="fn">cancelUnderstaffedCourses</span>(semesterId: <span class="type">UUID</span>) → <span class="type">CancelledCourse[]</span>
+
+  courses  ← DB.COURSE.findBySemester(semesterId, status: <span class="lit">"active"</span>)
+  cancelled ← []
+
+  <span class="kw">FOR EACH</span> course <span class="kw">IN</span> courses <span class="kw">DO</span>
+    <span class="kw">IF</span> course.enrolled &lt; <span class="lit">3</span> <span class="kw">THEN</span>
+      course.status ← <span class="lit">"CANCELLED"</span>
+      DB.COURSE.save(course)
+      cancelled.append(course)
+      <span class="fn">issueWarning</span>(<span class="kw">SYSTEM</span>, course.instructorId, <span class="lit">"instructor"</span>,
+                    <span class="lit">"Course "</span> + course.code + <span class="lit">" cancelled (under-enrolled)"</span>)
+      <span class="cm">// Update enrollments to DROPPED</span>
+      DB.ENROLLMENT.updateByCourse(course.id, {status: <span class="lit">"DROPPED"</span>})
+    <span class="kw">END IF</span>
+  <span class="kw">END FOR</span>
+
+  <span class="cm">// Check if any instructor had ALL courses cancelled → suspend</span>
+  instructorIds ← cancelled.map(c → c.instructorId).unique()
+  <span class="kw">FOR EACH</span> instrId <span class="kw">IN</span> instructorIds <span class="kw">DO</span>
+    remaining ← DB.COURSE.count(instructorId: instrId, semesterId, status: <span class="lit">"active"</span>)
+    <span class="kw">IF</span> remaining == <span class="lit">0</span> <span class="kw">THEN</span>
+      <span class="fn">suspendInstructor</span>(instrId, semesterId)
+    <span class="kw">END IF</span>
+  <span class="kw">END FOR</span>
+
+  <span class="kw">RETURN</span> cancelled</div>
+
+  <!-- M20 -->
+  <div class="method-header" id="m20">
+    <span class="mname">triggerSpecialRegistration</span>
+    <span class="mio">INPUT: cancelledCourseIds[] → void</span>
+  </div>
+  <div class="pseudo"><span class="kw">METHOD</span> <span class="fn">triggerSpecialRegistration</span>(cancelledCourseIds: <span class="type">UUID[]</span>)
+
+  affectedStudents ← DB.ENROLLMENT
+    .findByCoursesAndStatus(cancelledCourseIds, <span class="lit">"DROPPED"</span>)
+    .map(e → e.studentId).unique()
+
+  <span class="kw">FOR EACH</span> studentId <span class="kw">IN</span> affectedStudents <span class="kw">DO</span>
+    currentCount ← DB.ENROLLMENT.count(studentId, status: <span class="lit">"ENROLLED"</span>)
+    <span class="kw">IF</span> currentCount &lt; <span class="lit">2</span> <span class="kw">THEN</span>
+      <span class="fn">issueWarning</span>(<span class="kw">SYSTEM</span>, studentId, <span class="lit">"student"</span>,
+                    <span class="lit">"Fewer than 2 enrolled courses due to cancellation"</span>)
+    <span class="kw">END IF</span>
+    DB.SPECIAL_REG.create({studentId, opensAt: NOW(), closesAt: NOW() + <span class="lit">72h</span>})
+    <span class="fn">notifyStudent</span>(studentId, <span class="lit">"Special registration window open for 72 hours."</span>)
+  <span class="kw">END FOR</span>
+
+  <span class="cm">// Temporarily set semester phase to 2.5 (special registration)</span>
+  sem ← DB.SEMESTER.active()
+  sem.currentPhase ← <span class="lit">2.5</span>
+  DB.SEMESTER.save(sem)</div>
+
+  <!-- M21 -->
+  <div class="method-header" id="m21">
+    <span class="mname">advanceSemesterPhase</span>
+    <span class="mio">INPUT: registrarId, semesterId → SemesterPhase</span>
+  </div>
+  <div class="pseudo"><span class="kw">METHOD</span> <span class="fn">advanceSemesterPhase</span>(registrarId: <span class="type">UUID</span>, semesterId: <span class="type">UUID</span>) → <span class="type">SemesterPhase</span>
+
+  reg ← DB.REGISTRAR.find(registrarId) or <span class="acc">RAISE</span> "Unauthorised"
+  sem ← DB.SEMESTER.find(semesterId) or <span class="acc">RAISE</span> "Semester not found"
+  <span class="kw">IF</span> sem.currentPhase == <span class="lit">4</span> <span class="kw">THEN</span> <span class="acc">RAISE</span> "Already in final phase"
+
+  previousPhase ← sem.currentPhase
+  sem.currentPhase++
+  DB.SEMESTER.save(sem)
+
+  <span class="cm">// Phase entry side-effects</span>
+  <span class="kw">SWITCH</span> sem.currentPhase
+    <span class="kw">CASE</span> <span class="lit">3</span>:  <span class="cm">// CLASS_RUNNING: run cancellation check</span>
+      cancelled ← <span class="fn">cancelUnderstaffedCourses</span>(semesterId)
+      <span class="kw">IF</span> cancelled.length > <span class="lit">0</span> <span class="kw">THEN</span>
+        <span class="fn">triggerSpecialRegistration</span>(cancelled.map(c → c.id))
+      <span class="kw">END IF</span>
+    <span class="kw">CASE</span> <span class="lit">4</span>:  <span class="cm">// GRADING: set grading deadline</span>
+      DB.SEMESTER.update(semesterId, {gradingDeadline: NOW() + <span class="lit">14 days</span>})
+  <span class="kw">END SWITCH</span>
+
+  <span class="kw">RETURN</span> DB.SEMESTER_PHASE.find(semesterId, sem.currentPhase)</div>
+
+  <!-- M22 -->
+  <div class="method-header" id="m22">
+    <span class="mname">setupClass</span>
+    <span class="mio">INPUT: registrarId, courseData → Course</span>
+  </div>
+  <div class="pseudo"><span class="kw">METHOD</span> <span class="fn">setupClass</span>(registrarId: <span class="type">UUID</span>, courseData: {
+                   code, title, credits, capacity, schedule,
+                   instructorId, semesterId, dept}) → <span class="type">Course</span>
+
+  reg ← DB.REGISTRAR.find(registrarId) or <span class="acc">RAISE</span> "Unauthorised"
+  sem ← DB.SEMESTER.find(courseData.semesterId)
+  <span class="kw">IF</span> sem.currentPhase != <span class="lit">1</span> <span class="kw">THEN</span>
+    <span class="acc">RAISE</span> "Classes can only be set up during Phase 1"
+  <span class="kw">IF</span> courseData.capacity &lt; <span class="lit">3</span> <span class="kw">THEN</span>
+    <span class="acc">RAISE</span> "Minimum capacity is 3 (cancellation threshold)"
+  instr ← DB.INSTRUCTOR.find(courseData.instructorId) or <span class="acc">RAISE</span> "Instructor not found"
+  <span class="kw">IF</span> instr.isSuspended OR instr.nextSemesterBanned <span class="kw">THEN</span>
+    <span class="acc">RAISE</span> "Instructor is suspended and cannot teach this semester"
+
+  course ← DB.COURSE.create({...courseData, enrolled: <span class="lit">0</span>, status: <span class="lit">"active"</span>,
+                               avgRating: <span class="kw">NULL</span>, reviewsClosed: <span class="kw">FALSE</span>})
+  <span class="fn">notifyInstructor</span>(courseData.instructorId,
+                    <span class="lit">"You have been assigned to teach "</span> + courseData.code)
+  <span class="kw">RETURN</span> course</div>
+
+  <!-- M23 -->
+  <div class="method-header" id="m23">
+    <span class="mname">askAI</span>
+    <span class="mio">INPUT: userId, userRole, question → AIResponse</span>
+  </div>
+  <div class="pseudo"><span class="kw">METHOD</span> <span class="fn">askAI</span>(userId: <span class="type">UUID|NULL</span>, userRole: <span class="type">Enum</span>, question: <span class="type">String</span>) → <span class="type">AIResponse</span>
+
+  <span class="cm">// Build role-aware context window</span>
+  context ← {}
+  <span class="kw">IF</span> userRole == <span class="lit">"student"</span> <span class="kw">THEN</span>
+    context.myEnrollments ← DB.ENROLLMENT.findByStudent(userId)
+    context.myGrades      ← DB.GRADE.findByStudent(userId)
+  <span class="kw">ELSE IF</span> userRole == <span class="lit">"instructor"</span> <span class="kw">THEN</span>
+    context.myCourses     ← DB.COURSE.findByInstructor(userId)
+    context.myRosters     ← DB.ENROLLMENT.findByInstructorCourses(userId)
+  <span class="kw">END IF</span>
+
+  <span class="cm">// Query local vector DB</span>
+  embedding ← <span class="fn">embed</span>(question)
+  results   ← VectorDB.search(embedding, topK: <span class="lit">5</span>, threshold: <span class="lit">0.72</span>)
+
+  <span class="kw">IF</span> results.length > <span class="lit">0</span> <span class="kw">THEN</span>
+    answer ← <span class="fn">synthesiseAnswer</span>(question, results, context)
+    source ← results[0].source  <span class="cm">// e.g. "Handbook § 4.2"</span>
+    DB.AI_QUERY.create({userId, question, answer, sourceType: <span class="lit">"local"</span>})
+    <span class="kw">RETURN</span> {answer, source, hallucination: <span class="kw">FALSE</span>}
+  <span class="kw">END IF</span>
+
+  <span class="cm">// Fallback to external LLM — strip sensitive data first</span>
+  safeContext ← <span class="fn">sanitiseForLLM</span>(context, userRole)
+  llmAnswer   ← ExternalLLM.complete(question, safeContext)
+  DB.AI_QUERY.create({userId, question, answer: llmAnswer, sourceType: <span class="lit">"llm"</span>})
+  <span class="kw">RETURN</span> {answer: llmAnswer, source: <span class="lit">"External LLM"</span>, hallucination: <span class="kw">TRUE</span>}</div>
+
+  <!-- M24 -->
+  <div class="method-header" id="m24">
+    <span class="mname">checkInstructorWarnings</span>
+    <span class="mio">INPUT: instructorId → void</span>
+  </div>
+  <div class="pseudo"><span class="kw">METHOD</span> <span class="fn">checkInstructorWarnings</span>(instructorId: <span class="type">UUID</span>)
+
+  instr ← DB.INSTRUCTOR.find(instructorId)
+  <span class="kw">IF</span> instr.warningCount >= <span class="lit">3</span> <span class="kw">THEN</span>
+    <span class="fn">suspendInstructor</span>(instructorId, DB.SEMESTER.active().semesterID)
+  <span class="kw">END IF</span></div>
+
+  <!-- M25 -->
+  <div class="method-header" id="m25">
+    <span class="mname">suspendInstructor</span>
+    <span class="mio">INPUT: instructorId, semesterId → void</span>
+  </div>
+  <div class="pseudo"><span class="kw">METHOD</span> <span class="fn">suspendInstructor</span>(instructorId: <span class="type">UUID</span>, semesterId: <span class="type">UUID</span>)
+
+  DB.INSTRUCTOR.update(instructorId, {isSuspended: <span class="kw">TRUE</span>,
+                                       nextSemesterBanned: <span class="kw">TRUE</span>})
+  <span class="cm">// Remove from all active courses this semester</span>
+  courses ← DB.COURSE.findByInstructor(instructorId, semesterId, status: <span class="lit">"active"</span>)
+  <span class="kw">FOR EACH</span> course <span class="kw">IN</span> courses <span class="kw">DO</span>
+    course.instructorId ← <span class="kw">NULL</span>
+    DB.COURSE.save(course)
+  <span class="kw">END FOR</span>
+  <span class="fn">notifyRegistrar</span>(<span class="lit">"Instructor "</span> + instructorId + <span class="lit">" suspended; courses need reassignment"</span>)
+  <span class="fn">notifyInstructor</span>(instructorId, <span class="lit">"You have been suspended. You cannot teach next semester."</span>)</div>
+
+  <!-- M26 -->
+  <div class="method-header" id="m26">
+    <span class="mname">firstLoginChangePassword</span>
+    <span class="mio">INPUT: userId, tempPassword, newPassword, confirmPassword → void</span>
+  </div>
+  <div class="pseudo"><span class="kw">METHOD</span> <span class="fn">firstLoginChangePassword</span>(userId: <span class="type">UUID</span>, tempPassword: <span class="type">String</span>,
+                             newPassword: <span class="type">String</span>, confirmPassword: <span class="type">String</span>)
+
+  user ← DB.USER.find(userId) or <span class="acc">RAISE</span> "User not found"
+  <span class="kw">IF NOT</span> user.firstLogin <span class="kw">THEN</span> <span class="acc">RAISE</span> "Password already changed at first login"
+
+  <span class="kw">IF NOT</span> <span class="fn">bcryptVerify</span>(tempPassword, user.passwordHash) <span class="kw">THEN</span>
+    user.loginAttempts++
+    DB.USER.save(user)
+    <span class="kw">IF</span> user.loginAttempts >= <span class="lit">3</span> <span class="kw">THEN</span>
+      user.isActive ← <span class="kw">FALSE</span>
+      DB.USER.save(user)
+      <span class="fn">notifyRegistrar</span>(<span class="lit">"User "</span> + userId + <span class="lit">" locked after 3 failed temp-password attempts"</span>)
+      <span class="acc">RAISE</span> "Account locked. Contact the registrar."
+    <span class="kw">END IF</span>
+    <span class="acc">RAISE</span> "Incorrect temporary password"
+
+  <span class="kw">IF</span> newPassword != confirmPassword <span class="kw">THEN</span>
+    <span class="acc">RAISE</span> "Passwords do not match"
+  <span class="kw">IF</span> newPassword.length &lt; <span class="lit">12</span> <span class="kw">THEN</span>
+    <span class="acc">RAISE</span> "Password must be at least 12 characters"
+  <span class="kw">IF</span> newPassword.toLowerCase().includes(user.username.toLowerCase()) <span class="kw">THEN</span>
+    <span class="acc">RAISE</span> "Password must not contain your username"
+
+  user.passwordHash  ← <span class="fn">bcrypt</span>(newPassword)
+  user.firstLogin    ← <span class="kw">FALSE</span>
+  user.loginAttempts ← <span class="lit">0</span>
+  DB.USER.save(user)
+
+  <span class="kw">IF</span> user.role == <span class="lit">"student"</span> <span class="kw">THEN</span>
+    <span class="fn">showTutorial</span>(userId)  <span class="cm">// new-student onboarding walkthrough</span>
+  <span class="kw">END IF</span></div>
+
+  <!-- M27 -->
+  <div class="method-header" id="m27">
+    <span class="mname">generateStudyBuddyMatches</span>
+    <span class="mio">INPUT: studentId → Match[] · Creative Feature</span>
+  </div>
+  <div class="pseudo"><span class="kw">METHOD</span> <span class="fn">generateStudyBuddyMatches</span>(studentId: <span class="type">UUID</span>) → <span class="type">Match[]</span>
+  <span class="cm">// Creative feature: finds peers in shared courses with compatible schedules</span>
+
+  myEnrollments ← DB.ENROLLMENT.findByStudent(studentId, status: <span class="lit">"ENROLLED"</span>)
+  myCoursIds    ← myEnrollments.map(e → e.courseId)
+
+  candidates ← DB.ENROLLMENT
+    .findByCourses(myCoursIds, status: <span class="lit">"ENROLLED"</span>)
+    .filter(e → e.studentId != studentId)
+    .groupBy(e → e.studentId)
+
+  scored ← []
+  <span class="kw">FOR EACH</span> [peerId, sharedEnrollments] <span class="kw">IN</span> candidates <span class="kw">DO</span>
+    sharedCount  ← sharedEnrollments.length
+    peer         ← DB.STUDENT.find(peerId)
+    gpaDelta     ← Math.abs(peer.gpa - DB.STUDENT.find(studentId).gpa)
+    <span class="cm">// Score: 50 pts per shared course, penalise large GPA gap</span>
+    score        ← (sharedCount * <span class="lit">50</span>) - (gpaDelta * <span class="lit">10</span>)
+    note         ← <span class="fn">generateMatchNote</span>(sharedEnrollments)
+    scored.append({peerId, name: DB.USER.find(peerId).username,
+                   sharedCourse: sharedEnrollments[0].courseId,
+                   score: Math.round(score), note})
+  <span class="kw">END FOR</span>
+
+  scored.sort(m → -m.score)
+  <span class="kw">RETURN</span> scored.slice(<span class="lit">0</span>, <span class="lit">5</span>)  <span class="cm">// top 5 matches</span></div>
+</section>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- SECTION 5 -->
+<!-- ══════════════════════════════════════════════ -->
+<section id="s5">
+  <div class="sec-num">SECTION 05</div>
+  <h2 class="sec-title">System Screens</h2>
+  <p>The interactive prototype demonstrating all major screens is available in <strong>College0.html</strong> (see companion file). The screens below document the major GUI surfaces, their role access, and key interactions.</p>
+
+  <div class="screen-row">
+    <div class="screen-tile">
+      <div class="st-num">SCR-01 · All Roles</div>
+      <div class="st-name">Public Landing</div>
+      <p>Shows current semester phase timeline, top-rated seminars, lowest-rated seminars (for transparency), and honor-roll leaderboard. Accessible to unauthenticated visitors. AI ask-bar teaser links to ⌘K.</p>
+    </div>
+    <div class="screen-tile">
+      <div class="st-num">SCR-02 · Visitor</div>
+      <div class="st-name">Login / Apply</div>
+      <p>Split-screen: left panel is the College0 mark; right is the sign-in form. Tabs for first-login (forced password change) and application form (student/instructor). Tutorial triggered on first student login.</p>
+    </div>
+    <div class="screen-tile">
+      <div class="st-num">SCR-03 · Student</div>
+      <div class="st-name">My Dashboard</div>
+      <p>Four stat tiles (GPA, semester GPA, graduation progress, warnings/honors). Active courses with progress bars. Full academic history table. Advising panel with automated signals. Study-buddy matches (creative feature).</p>
+    </div>
+    <div class="screen-tile">
+      <div class="st-num">SCR-04 · Student</div>
+      <div class="st-name">Course Registration</div>
+      <p>Filterable course catalog with real-time time-conflict detection and color-coded seat counts. Schedule grid preview updates as courses are added to cart. Cart enforces 2–4 course rule before submission.</p>
+    </div>
+    <div class="screen-tile">
+      <div class="st-num">SCR-05 · Student / Visitor</div>
+      <div class="st-name">Class Detail + Reviews</div>
+      <p>Rating histogram, instructor bio, tabbed view (Overview / Reviews / Syllabus / Roster). Anonymous review form with live taboo-word detection preview. Review window closes on grade posting.</p>
+    </div>
+    <div class="screen-tile">
+      <div class="st-num">SCR-06 · Instructor</div>
+      <div class="st-name">Roster + Grading</div>
+      <p>Per-student grade pill pickers with live class-average display and out-of-band warning. Wait-list panel. AI risk panel flags at-risk students from gradebook data. CSV export and messaging.</p>
+    </div>
+    <div class="screen-tile">
+      <div class="st-num">SCR-07 · All Roles</div>
+      <div class="st-name">AI Assistant (⌘K)</div>
+      <p>Command palette overlay. Role-aware suggested prompts. Local vector-DB answers with source citation. LLM fallback with hallucination-warning banner. Query log stored per session.</p>
+    </div>
+    <div class="screen-tile">
+      <div class="st-num">SCR-08 · Registrar</div>
+      <div class="st-name">Applications Queue</div>
+      <p>Pending student and instructor applications. Auto-accepted items shown separately. Rule-deviation guard: justification field required when GPA-rule is overridden. Outcome emails triggered on save.</p>
+    </div>
+    <div class="screen-tile">
+      <div class="st-num">SCR-09 · Registrar</div>
+      <div class="st-name">Semester Phase Control</div>
+      <p>4-phase stepper with date ranges. Advance button triggers phase side-effects (cancellation check, special registration, grading deadline). Cannot advance without confirmation if prerequisite tasks are unmet.</p>
+    </div>
+  </div>
+
+  <div class="callout ok" style="margin-top:32px;">
+    The prototype is fully interactive with three theme variations (Editorial Academic · Modern Neutral · Dark Scholar), switchable via the Tweaks panel. Role switching (Visitor / Student / Instructor / Registrar) changes navigation, data visibility, and AI context in real time.
+  </div>
+</section>
+
+</div><!-- /content -->
+</div><!-- /shell -->
+
+<!-- Load diagram JS files -->
+<script src="diagrams.js"></script>
+<script src="er_diagram.js"></script>
+<script>
+  // Inject SVGs
+  document.getElementById("collab-container").insertAdjacentHTML("afterbegin", DIAGRAMS.collaboration);
+  document.getElementById("petri1-container").insertAdjacentHTML("afterbegin", DIAGRAMS.petriRegistration);
+  document.getElementById("petri2-container").insertAdjacentHTML("afterbegin", DIAGRAMS.petriAdmissions);
+  document.getElementById("petri3-container").insertAdjacentHTML("afterbegin", DIAGRAMS.petriGrading);
+  document.getElementById("er-container").insertAdjacentHTML("afterbegin", DIAGRAMS.er);
+</script>
+</body>
+</html>

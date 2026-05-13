@@ -6,13 +6,13 @@ const Landing = ({ setPage, setRole }) => {
     <div className="page">
       <section className="hero">
         <div>
-          <div className="kicker"><Eyebrow>College0 · Est. 2019 · A fake graduate college</Eyebrow></div>
+          <div className="kicker"><Eyebrow>College0 · Est. 2019</Eyebrow></div>
           <h1>
             A small college,<br/>
             <em>largely run by software.</em>
           </h1>
           <p className="lede">
-            College0 is a graduate program of forty-odd students, taught by a dozen instructors,
+            College0 is a graduate program taught by a dozen instructors,
             administered by a registrar, and — lately — asked questions by a language model
             that only knows our hallways. Below: who's teaching well, who's teaching badly,
             and who's eating their vegetables.
@@ -96,10 +96,10 @@ const Landing = ({ setPage, setRole }) => {
               </tbody>
             </table>
           </div>
-          <p className="footnote mt-2">
+          <div className="footnote mt-2">
             Any instructor receiving an average below 2.0 is issued a warning.
-            Three warnings ⇒ suspension. The registrars do not disclose which student rated which class.
-          </p>
+            Three warnings ⇒ suspension.
+          </div>
         </div>
 
         <div>

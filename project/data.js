@@ -32,6 +32,35 @@ window.COLLEGE_DATA = {
     { id: "s-00051", name: "Milo Vukovic",      gpa: 3.84, major: "CompSci",     year: "Y1", honors: 1 },
     { id: "s-00007", name: "Aisha El-Hashimi",  gpa: 3.81, major: "History",     year: "Y3", honors: 3 },
   ],
+  // ===== Warning ledger — first-class records, keyed by target =====
+  // target format: "s-NNNNN" for students, "i-Lastname" for instructors
+  warnings: [
+    { id: "w-001", target: "s-00029", targetName: "Wren Atsumi",      type: "student",    reason: "Review of ECON-599 contained a taboo word",   date: "Mar 4",  active: true },
+    { id: "w-002", target: "s-00093", targetName: "Jonas Brautigan",  type: "student",    reason: "Fewer than 2 active courses",                   date: "Feb 5",  active: true },
+    { id: "w-003", target: "s-00093", targetName: "Jonas Brautigan",  type: "student",    reason: "Missed 5 of 8 sessions in LIT-540",              date: "Mar 22", active: true },
+    { id: "w-004", target: "i-Lambert",  targetName: "P. Lambert",    type: "instructor", reason: "Class avg rating below 2.0 (ECON-599)",          date: "Feb 28", active: true },
+    { id: "w-005", target: "i-Lambert",  targetName: "P. Lambert",    type: "instructor", reason: "Grade distribution outside 2.5–3.5 band",        date: "Mar 18", active: true },
+    { id: "w-006", target: "i-Moreau",   targetName: "T. Moreau",     type: "instructor", reason: "Course underenrolled — issued at phase 2 → 3",   date: "Feb 3",  active: true },
+  ],
+  honorRoll: [
+    { id: "h-001", target: "s-00029", targetName: "Wren Atsumi",      reason: "Sem GPA 3.92 (Fall '25)",  date: "Dec 18", redeemed: false },
+    { id: "h-002", target: "s-00029", targetName: "Wren Atsumi",      reason: "Cum GPA 3.88",             date: "Dec 18", redeemed: false },
+    { id: "h-003", target: "s-00042", targetName: "Imogen Halvorsen", reason: "Sem GPA 4.00 (Fall '25)",  date: "Dec 18", redeemed: false },
+    { id: "h-004", target: "s-00042", targetName: "Imogen Halvorsen", reason: "Sem GPA 3.94 (Spr '25)",   date: "May 21", redeemed: false },
+    { id: "h-005", target: "s-00042", targetName: "Imogen Halvorsen", reason: "Cum GPA 3.97",             date: "Dec 18", redeemed: false },
+  ],
+  // Graduation applications — student → registrar
+  gradApps: [
+    // sample existing
+  ],
+  // Required courses per major — for graduation verification
+  requiredCourses: {
+    Literature:  ["LIT-501", "LIT-540", "LIT-488", "PHIL-520", "Capstone"],
+    Philosophy:  ["PHIL-520", "PHIL-612", "LOGIC-401", "Capstone"],
+    Mathematics: ["MATH-701", "MATH-610", "MATH-620", "Capstone"],
+    CompSci:     ["CS-710", "CS-702", "CS-650", "Capstone"],
+    History:     ["HIST-410", "HIST-605", "HIST-501", "Capstone"],
+  },
   // The "current student" viewed in the student dashboard
   me: {
     id: "s-00029",
@@ -44,7 +73,10 @@ window.COLLEGE_DATA = {
     warnings: 1,
     completedClasses: 5,
     graduationTarget: 8,
-    firstLogin: false,
+    firstLogin: true,
+    // courses I've already passed (cannot re-enroll) and previously failed (CAN re-enroll = retake)
+    passedCourses: ["LIT-501", "LIT-488", "PHIL-520", "LING-611", "HIST-410"],
+    failedCourses: ["MATH-701"],  // failed previously — eligible for retake
   },
   myClasses: [
     { code: "PHIL-612", title: "Ethics of Machine Reasoning", instructor: "M. Arkwright", time: "Mon / Wed  10:00—11:30", room: "Humanities 204", myRating: 5, progress: 0.62 },
@@ -81,7 +113,29 @@ window.COLLEGE_DATA = {
       { id: 5, semester: "Spring 2025", rating: 3, body: "Good lectures, but the grading was a total [****]. Expected clearer rubrics.", tabooCount: 1 },
     ],
   },
-  // Instructor roster (for grading view)
+  // Multiple instructor classes (C. Okonkwo teaches 2)
+  instructorClasses: [
+    {
+      code: "LIT-540", title: "The Long Form Essay", semester: "Spring 2026", avgRating: 4.8,
+      roster: [
+        { id: "s-00029", name: "Wren Atsumi", current: 3.88, submissions: "8 / 8", midterm: 94, grade: null },
+        { id: "s-00042", name: "Imogen Halvorsen", current: 3.97, submissions: "8 / 8", midterm: 97, grade: null },
+        { id: "s-00018", name: "Dara Okafor", current: 3.93, submissions: "8 / 8", midterm: 91, grade: null },
+        { id: "s-00066", name: "Temir Baikov", current: 3.22, submissions: "6 / 8", midterm: 72, grade: null },
+        { id: "s-00093", name: "Jonas Brautigan", current: 2.68, submissions: "5 / 8", midterm: 64, grade: null },
+      ],
+    },
+    {
+      code: "LIT-488", title: "Modernist Prose Workshop", semester: "Spring 2026", avgRating: 4.4,
+      roster: [
+        { id: "s-00051", name: "Milo Vukovic", current: 3.84, submissions: "7 / 8", midterm: 88, grade: null },
+        { id: "s-00007", name: "Aisha El-Hashimi", current: 3.81, submissions: "8 / 8", midterm: 90, grade: null },
+        { id: "s-00081", name: "Noor Haddad", current: 3.55, submissions: "8 / 8", midterm: 85, grade: null },
+        { id: "s-00104", name: "Kiri Wynter", current: 3.40, submissions: "8 / 8", midterm: 82, grade: null },
+      ],
+    },
+  ],
+  // Instructor roster (for grading view) — legacy single
   instructorClass: {
     code: "LIT-540",
     title: "The Long Form Essay",
@@ -121,4 +175,33 @@ window.COLLEGE_DATA = {
       "Which of my students are on honor roll?",
     ],
   },
+  // ===== Per-instructor course assignments (for phase 3 cancellation logic) =====
+  classEnrollments: [
+    // code -> registered student count (for phase 3)
+    { code: "PHIL-612", instructor: "i-Arkwright", instructorName: "M. Arkwright", enrolled: 12, cap: 14 },
+    { code: "LIT-540",  instructor: "i-Okonkwo",   instructorName: "C. Okonkwo",   enrolled: 10, cap: 12 },
+    { code: "CS-710",   instructor: "i-Sato",      instructorName: "H. Sato",      enrolled: 14, cap: 14 },
+    { code: "CS-702",   instructor: "i-Sato",      instructorName: "H. Sato",      enrolled: 11, cap: 12 },
+    { code: "HIST-605", instructor: "i-Lindqvist", instructorName: "B. Lindqvist", enrolled:  9, cap: 12 },
+    { code: "MATH-701", instructor: "i-Duval",     instructorName: "R. Duval",     enrolled:  6, cap: 10 },
+    { code: "ECON-599", instructor: "i-Lambert",   instructorName: "P. Lambert",   enrolled:  4, cap: 14 },
+    { code: "SOC-508",  instructor: "i-Moreau",    instructorName: "T. Moreau",    enrolled:  2, cap: 12, willCancel: true },  // <3 ⇒ cancel
+    { code: "ART-621",  instructor: "i-Devi",      instructorName: "N. Devi",      enrolled:  1, cap: 12, willCancel: true },  // <3 ⇒ cancel; only course
+    { code: "LING-611", instructor: "i-Abiola",    instructorName: "E. Abiola",    enrolled:  6, cap: 10 },
+  ],
+  // Students' active loads (for under-2 detection and grade simulation in phase 4)
+  studentLoads: [
+    { id: "s-00029", name: "Wren Atsumi",      major: "Literature",  courses: ["PHIL-612","LIT-540","HIST-605"], semGpa: 3.92, cumGpa: 3.88, prior: "honor" },
+    { id: "s-00042", name: "Imogen Halvorsen", major: "Philosophy",  courses: ["PHIL-612","LIT-540","SOC-508"],  semGpa: 4.00, cumGpa: 3.97, prior: "honor" },
+    { id: "s-00018", name: "Dara Okafor",      major: "Mathematics", courses: ["MATH-701","CS-710","LIT-540"],   semGpa: 3.94, cumGpa: 3.93, prior: "honor" },
+    { id: "s-00051", name: "Milo Vukovic",     major: "CompSci",     courses: ["CS-710","CS-702","HIST-605"],    semGpa: 3.82, cumGpa: 3.84, prior: "honor" },
+    { id: "s-00007", name: "Aisha El-Hashimi", major: "History",     courses: ["HIST-605","SOC-508","ART-621"],  semGpa: 3.75, cumGpa: 3.81, prior: "honor" },
+    { id: "s-00066", name: "Temir Baikov",     major: "Literature",  courses: ["LIT-540","ECON-599"],            semGpa: 3.05, cumGpa: 3.22, prior: "" },
+    { id: "s-00070", name: "Priya Kandasamy",  major: "CompSci",     courses: ["CS-710"],                         semGpa: 2.40, cumGpa: 2.95, prior: "" },     // 1 course → warn
+    { id: "s-00081", name: "Noor Haddad",      major: "History",     courses: ["HIST-605","LIT-540"],            semGpa: 3.50, cumGpa: 3.55, prior: "" },
+    { id: "s-00093", name: "Jonas Brautigan",  major: "Philosophy",  courses: ["LIT-540","ECON-599"],            semGpa: 1.85, cumGpa: 2.10, prior: "" },     // <2.0 ⇒ terminated, also failed twice possibility
+    { id: "s-00104", name: "Kiri Wynter",      major: "Mathematics", courses: ["MATH-701","CS-702","ART-621"],   semGpa: 3.40, cumGpa: 3.40, prior: "" },     // ART-621 will cancel
+    { id: "s-00115", name: "Hanan Aziz",       major: "Literature",  courses: ["LIT-540","SOC-508"],             semGpa: 3.62, cumGpa: 3.62, prior: "" },     // SOC-508 cancels
+    { id: "s-00121", name: "Rowan Castile",    major: "CompSci",     courses: ["CS-702","SOC-508","ART-621"],    semGpa: 2.20, cumGpa: 2.15, prior: "retake" }, // 2.0–2.25 ⇒ warn+interview
+  ],
 };

@@ -1,6 +1,11 @@
 /* College0 — design system */
 
 :root {
+  /* Shared sizing tokens */
+  --size-code: 11.5px;        /* course codes — mono everywhere */
+  --size-eyebrow: 10.5px;
+  --size-banner: 13px;
+  --schedule-hour: 44px;       /* used by .sc min-height AND Registration block math */
   /* Defaults are overwritten by theme classes */
   --bg: #f5efe4;
   --bg-2: #ebe3d3;
@@ -154,11 +159,14 @@ h1, h2, h3 { margin: 0; font-weight: 400; }
   border: 1px solid var(--line-2);
   border-radius: 999px;
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: var(--size-eyebrow);
+  line-height: 1.4;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--ink-2);
   background: var(--surface);
+  white-space: nowrap;          /* never let chip text wrap */
+  flex-shrink: 0;
 }
 .chip.accent { color: var(--accent); border-color: var(--accent); }
 .chip.ok { color: var(--ok); border-color: var(--ok); }
@@ -209,9 +217,11 @@ h1, h2, h3 { margin: 0; font-weight: 400; }
 }
 .brand-zero {
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: 60%;
   color: var(--accent);
-  transform: translateY(-8px);
+  vertical-align: super;
+  letter-spacing: 0;
+  /* aligned via vertical-align — no fragile translate */
 }
 .brand-sub {
   font-family: var(--font-mono);
@@ -239,7 +249,19 @@ h1, h2, h3 { margin: 0; font-weight: 400; }
   color: var(--ink-2);
   cursor: pointer;
   font-size: 13px;
+  line-height: 1.2;
   border: 1px solid transparent;
+}
+.nav-item > span:first-child {
+  /* icon glyph slot — normalize width + centering */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  flex-shrink: 0;
 }
 .nav-item:hover { background: var(--bg-2); color: var(--ink); }
 .nav-item.active { background: var(--surface); color: var(--ink); border-color: var(--line); }
@@ -288,7 +310,8 @@ h1, h2, h3 { margin: 0; font-weight: 400; }
 }
 .topbar .crumbs {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 11.5px;
+  line-height: 1.3;
   color: var(--ink-3);
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -302,7 +325,10 @@ h1, h2, h3 { margin: 0; font-weight: 400; }
   border: 1px solid var(--line);
   border-radius: var(--radius);
   color: var(--ink-3);
-  font-size: 12.5px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.3;
+  letter-spacing: 0.04em;
   cursor: pointer;
   min-width: 320px;
 }
@@ -317,8 +343,8 @@ h1, h2, h3 { margin: 0; font-weight: 400; }
 }
 
 /* Content padding */
-.page { padding: 32px 44px 80px; max-width: 1280px; }
-.page.narrow { max-width: 960px; }
+.page { padding: 32px 44px 80px; max-width: 1100px; margin: 0 auto; width: 100%; }
+.page.narrow { max-width: 860px; }
 
 .page-title {
   font-family: var(--font-display);
@@ -326,26 +352,41 @@ h1, h2, h3 { margin: 0; font-weight: 400; }
   line-height: 1.05;
   letter-spacing: -0.02em;
   font-weight: 400;
-  margin: 6px 0 18px;
+  margin: 6px 0 24px;
 }
+.page.wide { max-width: 1240px; }  /* for dense flows like Registration */
 .page-title .slash { color: var(--accent); font-style: italic; }
 
 .section-title {
-  display: flex; align-items: baseline; gap: 14px;
+  display: flex; align-items: last baseline; gap: 14px;
   padding-bottom: 10px; margin-bottom: 16px;
   border-bottom: 1px solid var(--line);
 }
 .section-title h2 {
   font-family: var(--font-display);
   font-size: 22px;
+  line-height: 1.2;
   letter-spacing: -0.01em;
+  margin: 0;
 }
 .section-title .count {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 11.5px;
+  line-height: 1.2;
   color: var(--ink-3);
+  letter-spacing: 0.04em;
+  position: relative;
+  top: -1px;            /* nudge mono down to share x-line with Fraunces */
 }
-.section-title .more { margin-left: auto; font-size: 12px; color: var(--ink-3); }
+.section-title .more {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  color: var(--ink-3);
+  position: relative;
+  top: -1px;
+}
 
 /* Landing hero */
 .hero {
@@ -413,7 +454,10 @@ table.data th {
 }
 table.data tr:hover td { background: var(--bg-2); }
 table.data td.num, table.data th.num { text-align: right; font-family: var(--font-mono); }
-table.data td.id { font-family: var(--font-mono); color: var(--ink-3); font-size: 12px; }
+table.data td.id { font-family: var(--font-mono); color: var(--ink-3); font-size: 12px; white-space: nowrap; }
+/* Avatar + name cells: keep on one line where there's room. */
+table.data td .row { flex-wrap: nowrap; }
+table.data td .row > span:last-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* Stars */
 .stars {
@@ -707,17 +751,49 @@ table.data td.id { font-family: var(--font-mono); color: var(--ink-3); font-size
 .review .r-body { color: var(--ink); font-size: 14px; line-height: 1.55; }
 .review .r-body .taboo { text-decoration: underline wavy var(--warn); color: var(--warn); }
 
-/* Warning banner */
+/* Banners (warn / ok / bad / info) — semantic variants instead of inline color-mix */
 .warn-banner {
   display: flex; align-items: center; gap: 12px;
   padding: 10px 16px;
   background: color-mix(in oklab, var(--warn) 12%, var(--surface));
   border: 1px solid color-mix(in oklab, var(--warn) 35%, var(--line));
   border-radius: var(--radius);
-  color: color-mix(in oklab, var(--warn) 70%, var(--ink));
-  font-size: 13px;
+  color: var(--ink);                       /* readable in both themes */
+  font-size: var(--size-banner);
+  line-height: 1.45;
 }
-.warn-banner .bar { width: 3px; height: 20px; background: var(--warn); }
+.warn-banner .bar { width: 3px; height: 20px; background: var(--warn); flex-shrink: 0; }
+.warn-banner b { color: var(--ink); }
+
+.warn-banner.ok {
+  background: color-mix(in oklab, var(--ok) 12%, var(--surface));
+  border-color: color-mix(in oklab, var(--ok) 35%, var(--line));
+}
+.warn-banner.ok .bar { background: var(--ok); }
+
+.warn-banner.bad {
+  background: color-mix(in oklab, var(--bad) 10%, var(--surface));
+  border-color: color-mix(in oklab, var(--bad) 35%, var(--line));
+}
+.warn-banner.bad .bar { background: var(--bad); }
+
+.warn-banner.info {
+  background: var(--bg-2);
+  border-color: var(--line);
+}
+.warn-banner.info .bar { background: var(--ink-3); }
+
+/* Reusable label class — replaces ad-hoc footnote-as-label */
+.label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: var(--size-eyebrow);
+  line-height: 1.2;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ink-3);
+  margin-bottom: 6px;
+}
 
 /* Progress */
 .bar-track {
@@ -731,23 +807,25 @@ table.data td.id { font-family: var(--font-mono); color: var(--ink-3); font-size
 /* Footnote */
 .footnote {
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: var(--size-eyebrow);
   color: var(--ink-3);
   letter-spacing: 0.06em;
+  line-height: 1.4;
 }
 
 /* Registration flow */
 .course-row {
   display: grid;
-  grid-template-columns: 90px 1fr 130px 90px 120px 100px;
-  gap: 0;
+  grid-template-columns: 78px minmax(0,2fr) 120px 70px 116px 86px;
+  gap: 12px;
   align-items: center;
   padding: 12px 14px;
   border-bottom: 1px solid var(--line);
   font-size: 13px;
 }
+.course-row > div { min-width: 0; }
 .course-row:hover { background: var(--bg-2); }
-.course-row .cid { font-family: var(--font-mono); color: var(--accent); font-size: 12px; }
+.course-row .cid { font-family: var(--font-mono); color: var(--accent); font-size: var(--size-code); }
 .course-row .ctitle { font-family: var(--font-display); font-size: 16px; }
 .course-row .cinst { color: var(--ink-2); font-size: 12.5px; }
 .course-row .cseats { font-family: var(--font-mono); font-size: 12px; }
@@ -786,6 +864,8 @@ table.data td.id { font-family: var(--font-mono); color: var(--ink-3); font-size
 }
 .schedule .sh {
   padding: 8px 10px;
+  min-height: var(--schedule-hour);
+  box-sizing: border-box;
   border-right: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
   font-family: var(--font-mono);
@@ -798,9 +878,10 @@ table.data td.id { font-family: var(--font-mono); color: var(--ink-3); font-size
 .schedule .sh:last-child { border-right: 0; }
 .schedule .sc {
   padding: 4px;
+  min-height: var(--schedule-hour);
+  box-sizing: border-box;
   border-right: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
-  min-height: 36px;
   position: relative;
 }
 .schedule .sc:last-child { border-right: 0; }
@@ -818,8 +899,11 @@ table.data td.id { font-family: var(--font-mono); color: var(--ink-3); font-size
 
 /* Grading roster */
 .grade-pill {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-width: 28px;
+  font-size: var(--size-code);
   text-align: center;
   font-family: var(--font-mono);
   font-size: 12px;

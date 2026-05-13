@@ -2,12 +2,23 @@
 
 const Registration = ({ setPage }) => {
   const D = window.COLLEGE_DATA;
+  const me = D.me;
+  const store = useStore();
   const [cart, setCart] = useState(["HIST-605", "LIT-540"]);
   const [dept, setDept] = useState("All");
   const [q, setQ] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+  // Special-registration window — passed via global flag
+  const isSpecial = window.__specialReg === true;
+  const displacedFrom = window.__displacedFrom || [];
+  const myActiveWarnings = store.warnings.filter(w => w.target === me.id && w.active).length;
+  const suspended = myActiveWarnings >= 3;
+  const canRegister = store.canRegister();
 
   const depts = ["All", ...new Set(D.catalog.map(c => c.dept))];
   const inCart = (code) => cart.includes(code);
+  const passed = (code) => me.passedCourses?.includes(code);
+  const failedBefore = (code) => me.failedCourses?.includes(code);
   const hasTimeConflict = (course) => {
     return cart.some(code => {
       const c = D.catalog.find(x => x.code === code);
@@ -29,9 +40,30 @@ const Registration = ({ setPage }) => {
   const hours = Array.from({ length: 9 }, (_, i) => 8 + i); // 8–16
 
   return (
-    <div className="page">
-      <Eyebrow>Spring 2026 · Registration</Eyebrow>
-      <h1 className="page-title">Pick your <span className="slash">courses.</span></h1>
+    <div className="page wide">
+      <Eyebrow>{isSpecial ? "Special-registration window" : "Spring 2026 · Registration"}</Eyebrow>
+      <h1 className="page-title">{isSpecial ? <>Replace your <span className="slash">cancelled</span> courses.</> : <>Pick your <span className="slash">courses.</span></>}</h1>
+
+      {!canRegister && !suspended && (
+        <div className="warn-banner bad mb-3">
+          <span className="bar" style={{background:"var(--bad)"}}/>
+          <span><b>Registration is closed.</b> The current phase is <b>{store.phase} · {["Class set-up","Registration","Class running","Grading"][store.phase-1]}</b>. Open registration is allowed only during <b>phase 2</b> or a special re-registration window.</span>
+        </div>
+      )}
+
+      {suspended && (
+        <div className="warn-banner bad mb-3">
+          <span className="bar" style={{background:"var(--bad)"}}/>
+          <span><b>You are suspended</b> — three active warnings. You must clear them and pay the reinstatement fine before you can register for next term.</span>
+        </div>
+      )}
+
+      {isSpecial && (
+        <div className="warn-banner mb-3">
+          <span className="bar"/>
+          <span><b>Course cancelled:</b> {displacedFrom.join(", ")} fell below the 3-student threshold. You have until <b>Feb 5, 23:59</b> to pick a replacement, otherwise you'll be flagged for under-courseload (&lt; 2 active).</span>
+        </div>
+      )}
 
       <div className="warn-banner mb-3">
         <span className="bar" />
@@ -40,9 +72,9 @@ const Registration = ({ setPage }) => {
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 32 }}>
         <div>
-          <div className="row mb-2" style={{ gap: 8 }}>
-            <input className="input" placeholder="Search code, title, instructor…" value={q} onChange={e => setQ(e.target.value)} style={{ maxWidth: 320 }} />
-            <div className="row" style={{ marginLeft: "auto", gap: 4 }}>
+          <div className="col mb-2" style={{ gap: 10 }}>
+            <input className="input" placeholder="Search code, title, instructor…" value={q} onChange={e => setQ(e.target.value)} />
+            <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>
               {depts.map(d => (
                 <button key={d} className={"btn sm " + (dept === d ? "primary" : "ghost")} onClick={() => setDept(d)}>{d}</button>
               ))}
@@ -61,25 +93,37 @@ const Registration = ({ setPage }) => {
             {filtered.map(c => {
               const conflict = !inCart(c.code) && hasTimeConflict(c);
               const full = c.seats === 0;
+              const alreadyPassed = passed(c.code);
+              const retake = failedBefore(c.code);
               return (
                 <div key={c.code} className="course-row">
-                  <div className="cid">{c.code}</div>
+                  <div className="cid">
+                    {c.code}
+                    {retake && <div className="mono" style={{fontSize:9.5,color:"var(--warn)",letterSpacing:"0.1em",marginTop:2,textTransform:"uppercase"}}>Retake</div>}
+                    {alreadyPassed && <div className="mono" style={{fontSize:9.5,color:"var(--ink-3)",letterSpacing:"0.1em",marginTop:2,textTransform:"uppercase"}}>Passed</div>}
+                  </div>
                   <div>
                     <div className="ctitle">{c.title}</div>
                     <div className="cinst">{c.instructor} · {c.dept}</div>
+                    {retake && <div className="mono" style={{fontSize:10.5,color:"var(--warn)",letterSpacing:"0.04em",marginTop:2}}>you failed this previously</div>}
+                    {alreadyPassed && <div className="mono" style={{fontSize:10.5,color:"var(--ink-3)",letterSpacing:"0.04em",marginTop:2}}>already passed</div>}
                   </div>
                   <div className="ctime">{c.time}</div>
                   <div className={"cseats " + (full ? "full" : c.seats <= 2 ? "low" : "ok")} style={{ textAlign: "right" }}>
                     {full ? "Wait-list" : `${c.seats} / ${c.cap}`}
                   </div>
                   <div style={{ textAlign: "center" }}>
-                    {inCart(c.code) ? <Chip tone="ok">In cart</Chip> :
+                    {alreadyPassed ? <Chip tone="bad">Passed — locked</Chip> :
+                     retake ? <Chip tone="warn">Retake eligible</Chip> :
+                     inCart(c.code) ? <Chip tone="ok">In cart</Chip> :
                      conflict ? <Chip tone="bad">Time conflict</Chip> :
                      full ? <Chip tone="warn">Full</Chip> :
                      <Chip>Open</Chip>}
                   </div>
                   <div style={{ textAlign: "right" }}>
-                    {inCart(c.code) ? (
+                    {alreadyPassed ? (
+                      <button className="btn sm" disabled style={{opacity:0.4}}>—</button>
+                    ) : inCart(c.code) ? (
                       <button className="btn sm" onClick={() => toggle(c.code)}>Remove</button>
                     ) : full ? (
                       <button className="btn sm">Join wait-list</button>
@@ -111,7 +155,7 @@ const Registration = ({ setPage }) => {
                   return (
                     <div key={dayIdx} className="sc">
                       {isStart && (
-                        <div className="block" style={{ position: "absolute", left: 4, right: 4, top: 4, bottom: 4, height: `${(course.end - course.start) * 44 - 8}px`, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+                        <div className="block" style={{ position: "absolute", left: 4, right: 4, top: 4, bottom: 4, height: `calc(${course.end - course.start} * var(--schedule-hour) - 8px)`, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
                           <div>{course.code}</div>
                           <div style={{ opacity: 0.8, fontSize: 9.5 }}>{course.title.slice(0, 24)}</div>
                         </div>
@@ -153,8 +197,12 @@ const Registration = ({ setPage }) => {
                 <div className="row" style={{ gap: 6 }}><span className="accent-ink">✓</span> No time conflicts</div>
               </div>
             </div>
-            <button className="btn primary" disabled={cart.length < 2}>Submit registration →</button>
-            <div className="footnote">Registration closes Feb 2 at 23:59.</div>
+            <button className="btn primary" disabled={cart.length < 2 || suspended || !canRegister} onClick={() => setSubmitted(true)}
+              style={submitted ? {background:"var(--ok)",borderColor:"var(--ok)"} : {}}
+              title={suspended ? "Suspended — cannot register" : !canRegister ? "Registration is not open in the current phase" : ""}>
+              {submitted ? "✓ Registered!" : suspended ? "Blocked · suspended" : !canRegister ? "Locked · phase " + store.phase : "Submit registration →"}
+            </button>
+            <div className="footnote" style={{ whiteSpace: "normal", lineHeight: 1.5 }}>Registration closes Feb 2, 23:59.</div>
           </div>
         </div>
       </div>

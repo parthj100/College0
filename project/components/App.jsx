@@ -78,7 +78,7 @@ const App = () => {
   if (page === "login") {
     return (
       <>
-        <Login setPage={setPage} />
+        <Login setPage={setPage} setRole={setRole} />
         <CmdK open={cmdOpen} onClose={() => setCmdOpen(false)} role={role}/>
         {tweaksOpen && <TweaksPanel theme={theme} setTheme={setTheme} accent={accent} setAccent={setAccent} radius={radius} setRadius={setRadius} font={font} setFont={setFont} onClose={()=>setTweaksOpen(false)}/>}
       </>
@@ -86,20 +86,28 @@ const App = () => {
   }
 
   const crumbs = {
-    "landing": ["College0", "Public"],
-    "student-dashboard": ["Student", "Dashboard"],
-    "registration": ["Student", "Course registration"],
-    "class-detail": ["Classes", "PHIL-612"],
-    "instructor-roster": ["Instructor", "LIT-540 · Roster"],
-    "apply": ["Visitor", "Apply"],
+    "landing":            ["College0", "Public"],
+    "student-dashboard":  ["Student", "Dashboard"],
+    "registration":       ["Student", "Course registration"],
+    "class-detail":       ["Classes", "PHIL-612"],
+    "my-class":           ["Student", "My class"],
+    "instructor-roster":  ["Instructor", "LIT-540 · Roster"],
+    "apply":              ["Visitor", "Apply"],
+    "browse-classes":     ["Public", "Browse classes"],
+    "browse-students":    ["Public", "Honor roll"],
+    "registrar-dash":     ["Registrar", "Console"],
   };
 
   const pages = {
-    landing:  { label: "Public landing", icon: "◐", roles: ["visitor","student","instructor"] },
-    "student-dashboard": { label: "My dashboard", icon: "◑", roles: ["student"] },
-    registration: { label: "Course registration", icon: "⊞", roles: ["student"] },
-    "class-detail": { label: "Class · reviews", icon: "★", roles: ["student","instructor","visitor"] },
-    "instructor-roster": { label: "My roster · grading", icon: "▦", roles: ["instructor"] },
+    landing:              { label: "Public landing",       icon: "◐", roles: ["visitor","student","instructor","registrar"] },
+    "browse-classes":     { label: "Browse classes",       icon: "⊞", roles: ["visitor"] },
+    "browse-students":    { label: "Honor roll",           icon: "★", roles: ["visitor"] },
+    "apply":              { label: "Apply to College0",    icon: "✎", roles: ["visitor"] },
+    "student-dashboard":  { label: "My dashboard",         icon: "◑", roles: ["student"] },
+    "registration":       { label: "Course registration",  icon: "⊞", roles: ["student"] },
+    "class-detail":       { label: "Class · reviews",      icon: "★", roles: ["student","instructor","visitor","registrar"] },
+    "instructor-roster":  { label: "My roster · grading",  icon: "▦", roles: ["instructor"] },
+    "registrar-dash":     { label: "Admin console",        icon: "◈", roles: ["registrar"] },
   };
 
   const navFor = (r) => Object.entries(pages).filter(([_, p]) => p.roles.includes(r));
@@ -120,7 +128,7 @@ const App = () => {
               <button className={role === "visitor" ? "active" : ""} onClick={() => { setRole("visitor"); setPage("landing"); }}>Visitor</button>
               <button className={role === "student" ? "active" : ""} onClick={() => { setRole("student"); setPage("student-dashboard"); }}>Student</button>
               <button className={role === "instructor" ? "active" : ""} onClick={() => { setRole("instructor"); setPage("instructor-roster"); }}>Instructor</button>
-              <button className={role === "registrar" ? "active" : ""} onClick={() => { setRole("registrar"); setPage("landing"); }}>Registrar</button>
+              <button className={role === "registrar" ? "active" : ""} onClick={() => { setRole("registrar"); setPage("registrar-dash"); }}>Registrar</button>
             </div>
           </div>
 
@@ -145,10 +153,21 @@ const App = () => {
 
           <div className="nav-section">
             <div className="nav-label">Session</div>
-            <div className="nav-item" onClick={() => setPage("login")}>
-              <span className="mono" style={{ width: 16 }}>↪</span>
-              <span>Sign out</span>
-            </div>
+            {role !== "visitor" ? (
+              <div className="nav-item" onClick={async () => {
+                if (window.Backend) await window.Backend.signOut();
+                setRole("visitor");
+                setPage("login");
+              }}>
+                <span className="mono" style={{ width: 16 }}>↪</span>
+                <span>Sign out</span>
+              </div>
+            ) : (
+              <div className="nav-item" onClick={() => setPage("login")}>
+                <span className="mono" style={{ width: 16 }}>↪</span>
+                <span>Sign in</span>
+              </div>
+            )}
             <div className="nav-item" onClick={() => setTweaksOpen(o => !o)}>
               <span className="mono" style={{ width: 16 }}>◈</span>
               <span>Tweaks</span>
@@ -156,7 +175,14 @@ const App = () => {
           </div>
 
           <div style={{ marginTop: "auto" }}>
-            {role === "student" && (
+            {role === "visitor" && (
+              <div className="card" style={{ padding: 10, fontSize: 12 }}>
+                <div className="footnote mb-1">VISITOR</div>
+                <div style={{ fontSize: 12 }}>Public access only.</div>
+                <button className="btn sm primary mt-2" style={{ width: "100%" }} onClick={() => setPage("login")}>Sign in →</button>
+              </div>
+            )}
+          {role === "student" && (
               <div className="card" style={{ padding: 10, fontSize: 12 }}>
                 <div className="row" style={{ gap: 8 }}>
                   <Avatar name="Wren Atsumi"/>
@@ -200,8 +226,13 @@ const App = () => {
           {page === "landing" && <Landing setPage={setPage} setRole={setRole}/>}
           {page === "student-dashboard" && <StudentDash setPage={setPage}/>}
           {page === "registration" && <Registration setPage={setPage}/>}
-          {page === "class-detail" && <ClassDetail setPage={setPage}/>}
+          {page === "class-detail" && <ClassDetail setPage={setPage} role={role}/>}
+          {page === "my-class" && <StudentClassDetail setPage={setPage}/>}
           {page === "instructor-roster" && <InstructorRoster setPage={setPage}/>}
+          {page === "registrar-dash" && <RegistrarDash setPage={setPage}/>}
+          {page === "apply" && <ApplyPage setPage={setPage}/>}
+          {page === "browse-classes" && <BrowseClasses setPage={setPage}/>}
+          {page === "browse-students" && <BrowseStudents setPage={setPage}/>}
         </main>
       </div>
 

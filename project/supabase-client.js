@@ -3,12 +3,17 @@
 // Surface: window.SB is the supabase-js client; window.Backend wraps RPC calls
 // the rest of the app uses instead of touching tables directly. The pre-existing
 // `CollegeStore` in shared.jsx will hydrate from these calls on app boot.
+//
+// Configuration: window.SB_CONFIG must be set before this script loads. Copy
+// `supabase-config.example.js` to `supabase-config.js` and fill in your project
+// URL + publishable anon key. The example file has setup details.
 
-window.SB_CONFIG = {
-  url: "https://kslxdmayscrcasqagktb.supabase.co",
-  anonKey:
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtzbHhkbWF5c2NyY2FzcWFna3RiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2MzIxMzksImV4cCI6MjA5NDIwODEzOX0.DpRkEnJarXYc5rHkD3yACSohG_mHg_ldDYB5YLysJIQ",
-};
+if (!window.SB_CONFIG || !window.SB_CONFIG.url || !window.SB_CONFIG.anonKey) {
+  throw new Error(
+    "Missing window.SB_CONFIG. Copy project/supabase-config.example.js to " +
+    "project/supabase-config.js and set your Supabase URL + anon key."
+  );
+}
 
 window.SB = window.supabase.createClient(
   window.SB_CONFIG.url,

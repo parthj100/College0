@@ -148,3 +148,147 @@ The AI assistant answers questions within each actor's access scope:
 - Graduation requires **8+ completed classes** and all degree requirements met; reckless filing issues a warning
 
 ---
+
+## Getting Started
+
+College0 is two pieces: a **Supabase backend** (Postgres + Edge Functions) and a **static HTML/React prototype** that talks to it. To run it end-to-end on your own you need both.
+
+### Prerequisites
+
+- A free [Supabase account](https://supabase.com) — provisioning a project takes ~30 seconds
+- The [Supabase CLI](https://supabase.com/docs/guides/cli) — `brew install supabase/tap/supabase` (macOS) or [other installers](https://supabase.com/docs/guides/local-development/cli/getting-started)
+- Python 3 (any version) for the static dev server, or any other static server you prefer
+
+### 1. Create a Supabase project
+
+1. Go to https://supabase.com/dashboard and click **New project**.
+2. Pick a name, region, and database password. Wait for it to finish provisioning.
+3. Note the **Project Reference** (the part before `.supabase.co` in your project URL).
+
+### 2. Apply the schema and seed data
+
+```bash
+git clone https://github.com/parthj100/College0.git
+cd College0
+
+supabase login
+supabase link --project-ref <YOUR_PROJECT_REF>
+supabase db push                       # applies all 13 migrations in supabase/migrations/
+```
+
+This creates every table, RLS policy, RPC function, trigger, and reference seed (taboo words, required courses, quotas, the 4 demo applications, and 10 KB documents for the AI assistant).
+
+### 3. Deploy the edge functions
+
+```bash
+supabase functions deploy bootstrap-demo-users --no-verify-jwt
+supabase functions deploy ai-query              --no-verify-jwt
+supabase functions deploy index-kb-embeddings   --no-verify-jwt
+```
+
+### 4. Bootstrap demo users
+
+Migration 010 seeds orphan profiles for the demo personas (12 students, 9 instructors, 1 registrar). The `bootstrap-demo-users` function wipes those, creates real `auth.users` for each, and re-creates all the role rows + courses + enrollments + warnings + honors so sign-in actually works.
+
+```bash
+ANON_KEY=$(supabase projects api-keys --project-ref <YOUR_PROJECT_REF> | awk '/anon/ {print $4}')
+
+curl -X POST "https://<YOUR_PROJECT_REF>.supabase.co/functions/v1/bootstrap-demo-users" \
+  -H "Authorization: Bearer $ANON_KEY"
+```
+
+Expected response:
+```json
+{ "instructors": 9, "students": 12, "courses": 11, "enrollments": 30,
+  "warnings": 6, "honors": 5, "failures": [], "users": { ... } }
+```
+
+The demo personas all share a fixed password — by default `college0demo!!` for students/instructors and `college0registrar!!` for the registrar. To override, set Supabase secrets before running bootstrap:
+```bash
+supabase secrets set DEMO_PASSWORD="..." DEMO_REGISTRAR_PASSWORD="..."
+```
+
+### 5. (Optional) Wire the AI assistant's vector branch and LLM fallback
+
+The `ai-query` function tries (in order): role gate → user-context queries → vector similarity → lexical KB → LLM fallback. The vector and LLM tiers are no-ops until you set keys:
+
+```bash
+supabase secrets set OPENAI_API_KEY="sk-..."        # for vector embeddings
+supabase secrets set ANTHROPIC_API_KEY="sk-ant-..." # for LLM fallback (optional)
+
+# After the OpenAI key is set, populate kb_docs.embedding once:
+curl -X POST "https://<YOUR_PROJECT_REF>.supabase.co/functions/v1/index-kb-embeddings" \
+  -H "Authorization: Bearer $ANON_KEY"
+# → { "indexed": 10, "failures": [] }
+```
+
+### 6. Configure the frontend
+
+Copy the example config and fill in your values:
+
+```bash
+cp project/supabase-config.example.js project/supabase-config.js
+# edit project/supabase-config.js: set url + anonKey from Project Settings → API
+```
+
+`project/supabase-config.js` is gitignored — it stays per-clone.
+
+### 7. Run the static frontend
+
+```bash
+python3 -m http.server 8421 --directory project
+```
+
+Open http://localhost:8421/College0.html. You'll land on the public visitor page. Sign in via the **Sign in →** link in the sidebar with one of the bootstrap-created accounts (the bootstrap response above lists every `display_id`).
+
+> If your browser caches old JS files between edits, bump `window.CACHE_BUST` in `project/College0.html` (and the matching `?cb=` query strings).
+
+---
+
+## Project Structure
+
+```
+College0/
+├── README.md                      # this file
+├── README.handoff.md              # original Claude Design handoff bundle README
+├── College0_Phase_II_Design_Report.pdf
+├── Diagrams/                      # ER + architecture diagrams
+├── project/                       # the static HTML/React prototype
+│   ├── College0.html              # entry point — loads everything else
+│   ├── supabase-config.example.js # template; copy to supabase-config.js
+│   ├── supabase-client.js         # Supabase client init + Backend wrapper
+│   ├── data.js                    # in-browser mock seed (used as fallback)
+│   ├── styles.css
+│   ├── components/                # JSX components (Babel-in-browser)
+│   ├── report/                    # design artifacts
+│   └── uploads/                   # source materials
+└── supabase/
+    ├── config.toml                # Supabase CLI config
+    ├── migrations/                # 13 SQL migrations applied with `supabase db push`
+    │   ├── 20260513041043_extensions_and_profiles.sql
+    │   ├── 20260513041058_courses_enrollments_reviews.sql
+    │   ├── 20260513041111_ledgers_complaints_graduation.sql
+    │   ├── 20260513041135_taboo_quotas_apps_state_kb.sql
+    │   ├── 20260513041215_helpers_and_rls.sql
+    │   ├── 20260513041316_rpc_review_grades.sql
+    │   ├── 20260513041403_rpc_apps_phases_register.sql
+    │   ├── 20260513041430_triggers_warning_signup.sql
+    │   ├── 20260513041458_seed_reference_and_state.sql
+    │   ├── 20260513041554_seed_demo_users_and_courses.sql
+    │   ├── 20260513182046_seed_kb_docs.sql
+    │   ├── 20260513182815_realtime_publication.sql
+    │   └── 20260513183335_kb_vector_match_rpc.sql
+    └── functions/                 # 3 Deno edge functions
+        ├── bootstrap-demo-users/  # idempotent demo-user creation
+        ├── ai-query/              # role-gated KB + LLM fallback
+        └── index-kb-embeddings/   # one-shot KB embedding indexer
+```
+
+### How the layers fit together
+
+- **Schema** lives in `supabase/migrations/`. Apply with `supabase db push`. Adding a migration: drop a new file with a later timestamp prefix.
+- **Server-side rules** live in Postgres: RLS policies enforce who reads what; RPC functions (`submit_review`, `record_grades`, `register_for_course`, `decide_application`, `advance_phase`, `resolve_complaint`, `redeem_honor`) enforce the policy-heavy business logic; triggers auto-suspend on warning thresholds.
+- **Edge functions** wrap operations that need the Supabase Auth Admin API or external services (LLM, embeddings).
+- **Frontend** runs entirely in the browser — Babel transforms JSX in-page, the supabase-js client manages auth + queries, and a small wrapper in `supabase-client.js` exposes a stable `Backend` API the components call.
+
+---

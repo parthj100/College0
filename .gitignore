@@ -8,3 +8,6 @@ node_modules/
 
 # Local-only configuration
 .claude/launch.json
+
+# Supabase project URL + anon key (per-clone, copy from .example)
+project/supabase-config.js

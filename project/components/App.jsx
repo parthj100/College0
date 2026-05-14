@@ -125,10 +125,37 @@ const App = () => {
           <div className="col" style={{ gap: 8 }}>
             <div className="nav-label">Role</div>
             <div className="role-switcher">
-              <button className={role === "visitor" ? "active" : ""} onClick={() => { setRole("visitor"); setPage("landing"); }}>Visitor</button>
-              <button className={role === "student" ? "active" : ""} onClick={() => { setRole("student"); setPage("student-dashboard"); }}>Student</button>
-              <button className={role === "instructor" ? "active" : ""} onClick={() => { setRole("instructor"); setPage("instructor-roster"); }}>Instructor</button>
-              <button className={role === "registrar" ? "active" : ""} onClick={() => { setRole("registrar"); setPage("registrar-dash"); }}>Registrar</button>
+              <button className={role === "visitor" ? "active" : ""} onClick={async () => {
+                // "Visitor" doubles as sign-out: drop any session, go to landing.
+                if (window.Backend && window.CollegeStore?.me) await window.Backend.signOut();
+                setRole("visitor");
+                setPage("landing");
+              }}>Visitor</button>
+              {["student", "instructor", "registrar"].map(r => {
+                const authedRole = window.CollegeStore?.me?.role;
+                const canSwitch = authedRole === r;
+                return (
+                  <button
+                    key={r}
+                    className={role === r ? "active" : ""}
+                    onClick={async () => {
+                      if (canSwitch) {
+                        // Already signed in as that role — just go home.
+                        setRole(r);
+                        setPage(r === "registrar" ? "registrar-dash" : r === "instructor" ? "instructor-roster" : "student-dashboard");
+                      } else {
+                        // Need to (re)authenticate as that role first.
+                        if (window.Backend && authedRole && authedRole !== r) await window.Backend.signOut();
+                        setRole("visitor");
+                        setPage("login");
+                      }
+                    }}
+                    title={canSwitch ? "" : "Sign in as " + r + " to access this view"}
+                  >
+                    {r[0].toUpperCase() + r.slice(1)}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -168,10 +195,6 @@ const App = () => {
                 <span>Sign in</span>
               </div>
             )}
-            <div className="nav-item" onClick={() => setTweaksOpen(o => !o)}>
-              <span className="mono" style={{ width: 16 }}>◈</span>
-              <span>Tweaks</span>
-            </div>
           </div>
 
           <div style={{ marginTop: "auto" }}>

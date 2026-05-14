@@ -91,13 +91,7 @@ const Login = ({ setPage, setRole }) => {
                 <a href="#" className="muted" onClick={(e) => { e.preventDefault(); setRole("visitor"); setPage("apply"); }}>Apply to the program →</a>
               </div>
               <div className="hairline" style={{ marginTop: 12, paddingTop: 16 }}>
-                <div className="footnote mb-1">QUICK DEMO · IMPERSONATE</div>
-                <div className="row">
-                  <button className="btn sm" onClick={() => { setRole("student"); setPage("student-dashboard"); }}>Student</button>
-                  <button className="btn sm" onClick={() => { setRole("instructor"); setPage("instructor-roster"); }}>Instructor</button>
-                  <button className="btn sm" onClick={() => { setRole("registrar"); setPage("registrar-dash"); }}>Registrar</button>
-                  <button className="btn sm" onClick={() => { setRole("visitor"); setPage("landing"); }}>Visitor</button>
-                </div>
+                <a href="#" className="muted" style={{ fontSize: 12 }} onClick={(e) => { e.preventDefault(); setRole("visitor"); setPage("landing"); }}>← Continue as visitor</a>
               </div>
             </>
           )}

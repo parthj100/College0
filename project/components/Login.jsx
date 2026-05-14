@@ -63,7 +63,7 @@ const Login = ({ setPage, setRole }) => {
           ——— 47 students<br/>
           ——— 12 instructors<br/>
           ——— 1 registrar<br/>
-          ——— 1 model (hallucinates rarely)
+          ——— established 2019
         </div>
       </div>
 

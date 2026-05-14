@@ -8,14 +8,13 @@ const Landing = ({ setPage, setRole }) => {
         <div>
           <div className="kicker"><Eyebrow>College0 · Est. 2019</Eyebrow></div>
           <h1>
-            A small college,<br/>
-            <em>largely run by software.</em>
+            College<span className="slash">0</span>.<br/>
+            <em>A small graduate program.</em>
           </h1>
           <p className="lede">
-            College0 is a graduate program taught by a dozen instructors,
-            administered by a registrar, and — lately — asked questions by a language model
-            that only knows our hallways. Below: who's teaching well, who's teaching badly,
-            and who's eating their vegetables.
+            Eleven seminars a term, twelve full-time faculty, four-month semesters
+            organized around long-form work. We publish what's working and what
+            isn't — every term, in plain view.
           </p>
           <div className="row">
             <button className="btn primary" onClick={() => { setRole("visitor"); setPage("apply"); }}>
@@ -132,20 +131,20 @@ const Landing = ({ setPage, setRole }) => {
         </div>
       </section>
 
-      {/* AI teaser */}
+      {/* Handbook callout */}
       <section style={{ marginTop: 56 }}>
         <div className="card" style={{ padding: 28, display: "grid", gridTemplateColumns: "1fr auto", gap: 24, alignItems: "center" }}>
           <div>
-            <Eyebrow>Ask College0</Eyebrow>
+            <Eyebrow>The handbook</Eyebrow>
             <div className="display" style={{ fontSize: 28, marginTop: 6, letterSpacing: "-0.01em" }}>
-              We built a small assistant that knows things the general LLMs don't.
+              Admissions, registration, grading, graduation — all documented in one place.
             </div>
             <p className="muted" style={{ marginTop: 8, fontSize: 14 }}>
-              It's indexed the handbook, the class catalog, and every registrar memo since 2021.
-              Press <span className="mono">⌘K</span> to ask anything.
+              Search the handbook, the class catalog, or any registrar memo since 2021.
+              Press <span className="mono">⌘K</span>.
             </p>
           </div>
-          <button className="btn primary" onClick={() => window.dispatchEvent(new CustomEvent("open-cmdk"))}>Ask · ⌘K</button>
+          <button className="btn primary" onClick={() => window.dispatchEvent(new CustomEvent("open-cmdk"))}>Search · ⌘K</button>
         </div>
       </section>
     </div>

@@ -127,6 +127,20 @@ window.Backend = {
     return { ...r, provision: provisionResult };
   },
 
+  // ---- Reset an applicant's password back to the demo temp pw ----
+  async resetApplicantPassword(userId) {
+    const session = await Backend.session();
+    const res = await fetch(`${SB_CONFIG.url}/functions/v1/reset-applicant-password`, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${session?.access_token}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ user_id: userId }),
+    });
+    return res.json();
+  },
+
   // ---- Phases ----
   async advancePhase() {
     return SB.rpc("advance_phase");

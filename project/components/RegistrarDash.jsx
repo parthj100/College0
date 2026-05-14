@@ -222,7 +222,7 @@ const RegistrarDash = ({ setPage }) => {
               <div className="section-title" style={{marginTop:24}}><h2>Resolved</h2></div>
               <div className="card">
                 <table className="data">
-                  <thead><tr><th>Name · Email</th><th>Type</th><th>Decision</th><th>Issued credentials</th></tr></thead>
+                  <thead><tr><th>Name · Email</th><th>Type</th><th>Decision</th><th>Issued credentials</th><th></th></tr></thead>
                   <tbody>
                     {resolved.map(a => {
                       const provisioned = a.status === "accept" && a.issuedUserId;
@@ -249,6 +249,15 @@ const RegistrarDash = ({ setPage }) => {
                                 <span className="muted">Provisioning…</span>
                               )
                             ) : <span className="muted">—</span>}
+                          </td>
+                          <td style={{textAlign:"right"}}>
+                            {provisioned && (
+                              <button className="btn sm ghost" onClick={async () => {
+                                const r = await window.Backend.resetApplicantPassword(a.issuedUserId);
+                                if (r.error) alert("Reset failed: " + r.error);
+                                else { alert("Password reset to " + r.password); await store.refreshFromBackend(); }
+                              }}>Reset password</button>
+                            )}
                           </td>
                         </tr>
                       );

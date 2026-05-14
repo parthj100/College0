@@ -9,5 +9,9 @@ node_modules/
 # Local-only configuration
 .claude/launch.json
 
-# Supabase project URL + anon key (per-clone, copy from .example)
-project/supabase-config.js
+# Supabase project URL + anon key — committed for Vercel deploys.
+# The anon key is designed to be public (RLS gates everything server-side).
+# If you fork into a different Supabase project, edit project/supabase-config.js
+# with your own URL + anon key, or use Vercel env vars + a build step.
+# (uncomment the line below to keep your config private)
+# project/supabase-config.js

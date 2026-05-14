@@ -2,7 +2,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2.46.1';
 
 // Spec §9: role-gated KB + LLM fallback with hallucination warning.
 // Pipeline: role gate → user-context fast paths → vector search (if embeddings
-// exist) → lexical KB → LLM fallback (Anthropic OR OpenAI, whichever key is set).
+// exist) → lexical KB → LLM fallback (Anthropic, OpenAI, Ollama — first set wins).
 
 const CORS = {
   'access-control-allow-origin': '*',
@@ -183,16 +183,51 @@ async function answerFromOpenAI(question: string, apiKey: string): Promise<Answe
   }
 }
 
+// Ollama (https://ollama.com). Configure with OLLAMA_URL (public host that Supabase
+// can reach — localhost won't work from edge functions; use a tunnel like ngrok or
+// a cloud-hosted Ollama). OLLAMA_MODEL defaults to llama3.2.
+async function answerFromOllama(question: string, url: string, model: string): Promise<Answer | null> {
+  try {
+    const res = await fetch(`${url.replace(/\/$/, '')}/api/chat`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        model,
+        stream: false,
+        messages: [
+          { role: 'system', content: LLM_SYSTEM },
+          { role: 'user', content: question },
+        ],
+      }),
+    });
+    const json = await res.json();
+    if (!res.ok) return { body: `Ollama ${res.status}: ${JSON.stringify(json).slice(0,200)}`, source: 'External LLM · error', kind: 'llm' };
+    const text = json?.message?.content;
+    if (!text) return null;
+    return { body: text, source: `External LLM · Ollama (${model})`, kind: 'llm' };
+  } catch (e) {
+    return { body: `Ollama call failed: ${e instanceof Error ? e.message : String(e)}`, source: 'External LLM · error', kind: 'llm' };
+  }
+}
+
 async function answerFromLLM(question: string): Promise<Answer> {
   const anth = Deno.env.get('ANTHROPIC_API_KEY');
   const oai = Deno.env.get('OPENAI_API_KEY');
-  // Prefer Anthropic if both are set; otherwise use whichever is set.
+  const ollamaUrl = Deno.env.get('OLLAMA_URL');
+  const ollamaModel = Deno.env.get('OLLAMA_MODEL') || 'llama3.2';
+
+  // Precedence: Anthropic → OpenAI → Ollama. First configured backend wins; if it
+  // errors, the next one is tried.
   if (anth) {
     const a = await answerFromAnthropic(question, anth);
-    if (a) return a;
+    if (a && a.source !== 'External LLM · error') return a;
   }
   if (oai) {
     const a = await answerFromOpenAI(question, oai);
+    if (a && a.source !== 'External LLM · error') return a;
+  }
+  if (ollamaUrl) {
+    const a = await answerFromOllama(question, ollamaUrl, ollamaModel);
     if (a) return a;
   }
   return {

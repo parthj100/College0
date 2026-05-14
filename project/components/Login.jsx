@@ -71,7 +71,14 @@ const Login = ({ setPage, setRole }) => {
             <a href="#" className="muted" onClick={(e) => { e.preventDefault(); setRole("visitor"); setPage("apply"); }}>Apply to the program →</a>
           </div>
           <div className="hairline" style={{ marginTop: 12, paddingTop: 16 }}>
-            <a href="#" className="muted" style={{ fontSize: 12 }} onClick={(e) => { e.preventDefault(); setRole("visitor"); setPage("landing"); }}>← Continue as visitor</a>
+            <div className="footnote mb-2">QUICK SIGN-IN · DEMO</div>
+            <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>
+              <button className="btn sm" onClick={async () => { await window.Backend.signIn("s-00042@college0.demo", "college0demo!!"); setRole("student"); setPage("student-dashboard"); }}>Student</button>
+              <button className="btn sm" onClick={async () => { await window.Backend.signIn("i-okonkwo@college0.demo", "college0demo!!"); setRole("instructor"); setPage("instructor-roster"); }}>Instructor</button>
+              <button className="btn sm" onClick={async () => { await window.Backend.signIn("registrar@college0.demo", "college0registrar!!"); setRole("registrar"); setPage("registrar-dash"); }}>Registrar</button>
+              <button className="btn sm" onClick={() => { setRole("visitor"); setPage("landing"); }}>Visitor</button>
+            </div>
+            <div className="footnote mt-2" style={{ textTransform: "none", letterSpacing: 0 }}>One-click demo logins for each role.</div>
           </div>
         </div>
       </div>

@@ -176,6 +176,7 @@ cs._refreshFromBackendInner = async () => {
     cs.applications = (d.applications || []).map(a => ({
       id: a.id,
       name: a.name,
+      email: a.email,
       type: a.type,
       gpa: a.prior_gpa ? parseFloat(a.prior_gpa) : null,
       dept: a.department,
@@ -183,6 +184,8 @@ cs._refreshFromBackendInner = async () => {
       status: a.status,
       justification: a.justification,
       filedAt: a.filed_at,
+      issuedUserId: a.issued_user_id,
+      tempPassword: a.temp_password,
     }));
     cs.complaints = (d.complaints || []).map(c => ({
       id: c.id,

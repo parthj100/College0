@@ -11,11 +11,11 @@ const CORS = {
   'access-control-allow-methods': 'POST, OPTIONS',
 };
 
-function tempPassword(): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(6));
-  const b64 = btoa(String.fromCharCode(...bytes)).replace(/[+/=]/g, '').slice(0, 8);
-  return 'c0-' + b64.toLowerCase();
-}
+// Demo system: temp password is the fixed string "123456" so it's easy to
+// communicate verbally. The user is forced to change it on first login
+// (must_change_password=true is set in user_metadata). Override with the
+// DEMO_TEMP_PASSWORD secret on Supabase if needed.
+const DEMO_TEMP_PASSWORD = Deno.env.get('DEMO_TEMP_PASSWORD') ?? '123456';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
@@ -62,7 +62,7 @@ Deno.serve(async (req) => {
     }
   }
 
-  const password = tempPassword();
+  const password = DEMO_TEMP_PASSWORD;
   const { data: created, error: createErr } = await supabase.auth.admin.createUser({
     email: app.email,
     password,

@@ -12,6 +12,8 @@ const RegistrarDash = ({ setPage }) => {
   const [showJust, setShowJust] = React.useState(null);
   const [tabooWords, setTabooWords] = React.useState(["damn", "hell", "stupid", "idiot", "hate"]);
   const [newWord, setNewWord] = React.useState("");
+  const [decideError, setDecideError] = React.useState({});
+  const [decideBusy, setDecideBusy] = React.useState({});
   const complaints = store.complaints;
 
 
@@ -22,12 +24,26 @@ const RegistrarDash = ({ setPage }) => {
   const enrolledFor = (dept) => store.programEnrollment[dept] || 0;
   const quotaFull = (dept) => enrolledFor(dept) >= quotaFor(dept);
 
-  const decide = (id, decision) => {
+  const decide = async (id, decision) => {
     const app = apps.find(a => a.id === id);
+    if (!app) return;
     // Auto-accept requires GPA ≥ 3.0 AND program quota not full
     const needsJust = decision === "reject" && app.type === "student" && app.gpa >= 3.0 && !quotaFull(app.dept);
     if (needsJust && !justification[id]) { setShowJust(id); return; }
-    store.decideApplication(id, decision, justification[id]);
+    setDecideBusy(b => ({ ...b, [id]: true }));
+    setDecideError(e => ({ ...e, [id]: null }));
+    try {
+      const r = await window.Backend.decideApplication(id, decision, justification[id] || "");
+      if (r?.error) {
+        setDecideError(e => ({ ...e, [id]: r.error.message || String(r.error) }));
+      } else if (decision === "accept" && r?.provision?.error) {
+        setDecideError(e => ({ ...e, [id]: "Provisioning: " + r.provision.error }));
+      }
+      await store.refreshFromBackend();
+    } catch (err) {
+      setDecideError(e => ({ ...e, [id]: err.message || String(err) }));
+    }
+    setDecideBusy(b => ({ ...b, [id]: false }));
     setShowJust(null);
   };
 
@@ -188,11 +204,14 @@ const RegistrarDash = ({ setPage }) => {
                     )}
                   </div>
                   <div className="col" style={{gap:8,alignItems:"flex-end"}}>
-                    <button className="btn accent" onClick={()=>decide(a.id,"accept")}>Accept →</button>
-                    <button className="btn" onClick={()=>{ setShowJust(a.id); if(showJust===a.id && justification[a.id]) decide(a.id,"reject"); }}>
+                    <button className="btn accent" disabled={decideBusy[a.id]} onClick={()=>decide(a.id,"accept")}>
+                      {decideBusy[a.id] ? "Provisioning…" : "Accept →"}
+                    </button>
+                    <button className="btn" disabled={decideBusy[a.id]} onClick={()=>{ setShowJust(a.id); if(showJust===a.id && justification[a.id]) decide(a.id,"reject"); }}>
                       {needsJust && justification[a.id] ? "Confirm rejection" : "Reject"}
                     </button>
                     {needsJust && <div className="footnote">Must justify override of GPA rule</div>}
+                    {decideError[a.id] && <div className="footnote" style={{color:"var(--bad)",maxWidth:240,textAlign:"right"}}>{decideError[a.id]}</div>}
                   </div>
                 </div>
               </div>
@@ -203,21 +222,32 @@ const RegistrarDash = ({ setPage }) => {
               <div className="section-title" style={{marginTop:24}}><h2>Resolved</h2></div>
               <div className="card">
                 <table className="data">
-                  <thead><tr><th>Name</th><th>Type</th><th>Decision</th><th>Credentials issued</th></tr></thead>
+                  <thead><tr><th>Name · Email</th><th>Type</th><th>Decision</th><th>Issued credentials</th></tr></thead>
                   <tbody>
-                    {resolved.map(a=>{
-                      const cred = store.credentials[a.id];
+                    {resolved.map(a => {
+                      const provisioned = a.status === "accept" && a.issuedUserId;
+                      const displayId = provisioned ? store.profilesById?.[a.issuedUserId]?.displayId : null;
                       return (
                         <tr key={a.id}>
-                          <td>{a.name}</td>
+                          <td>
+                            <div>{a.name}</div>
+                            <div className="footnote">{a.email}</div>
+                          </td>
                           <td className="muted">{a.type}</td>
-                          <td><Chip tone={a.status==="accept"?"ok":"bad"}>{a.status}</Chip>{a.justification && <div className="footnote" style={{marginTop:4}}>Justification: {a.justification}</div>}</td>
-                          <td className="mono" style={{fontSize:11.5}}>
-                            {cred ? (
-                              <>
-                                <div>{cred.studentId || cred.instructorId}</div>
-                                <div className="muted">temp pw: {cred.tempPassword} {cred.mustChange && <Chip tone="warn">must change on first login</Chip>}</div>
-                              </>
+                          <td>
+                            <Chip tone={a.status==="accept"?"ok":"bad"}>{a.status}</Chip>
+                            {a.justification && <div className="footnote" style={{marginTop:4}}>Justification: {a.justification}</div>}
+                          </td>
+                          <td className="mono" style={{fontSize:12}}>
+                            {a.status === "accept" ? (
+                              provisioned ? (
+                                <>
+                                  <div><b>{displayId || "—"}</b></div>
+                                  <div className="muted">password: <b>{a.tempPassword || "—"}</b></div>
+                                </>
+                              ) : (
+                                <span className="muted">Provisioning…</span>
+                              )
                             ) : <span className="muted">—</span>}
                           </td>
                         </tr>

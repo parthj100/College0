@@ -16,9 +16,15 @@ const ClassDetail = ({ setPage, role = "student" }) => {
     if (!courseRow || !window.SB) return;
     let cancelled = false;
     (async () => {
+      // Use the view (which exposes author_id) only when the viewer is registrar;
+      // otherwise pull from `reviews` and skip the author embed (anonymity).
+      const isReg = window.CollegeStore.me?.role === "registrar";
+      const sel = isReg
+        ? "id, rating, body, taboo_count, hidden, created_at, author:students(profile:profiles(display_id))"
+        : "id, rating, body, taboo_count, hidden, created_at";
       const { data, error } = await window.SB
-        .from("reviews")
-        .select("id, rating, body, taboo_count, hidden, created_at, author:students(profile:profiles(display_id))")
+        .from(isReg ? "reviews_with_authors" : "reviews")
+        .select(sel)
         .eq("course_id", courseRow.id)
         .order("created_at", { ascending: true });
       if (cancelled || error || !data) return;

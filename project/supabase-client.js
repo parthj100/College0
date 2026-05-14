@@ -89,7 +89,9 @@ window.Backend = {
       SB.from("required_courses").select("*"),
       SB.from("program_quotas").select("*"),
       SB.from("enrollments").select("*, course:courses(code, title, time_label, room), student:students(profile:profiles(*))"),
-      SB.from("reviews").select("*, author:students(profile:profiles(display_id, full_name)), course:courses(code, title)"),
+      // Reviews list during hydrate: skip author embed for non-registrars
+      // (RLS blocks the join). ClassDetail picks the right table per role on demand.
+      SB.from("reviews").select("id, course_id, rating, body, taboo_count, hidden, created_at, course:courses(code, title)"),
       SB.from("fines").select("*"),
     ]);
     return {
@@ -101,7 +103,10 @@ window.Backend = {
 
   // ---- Applications ----
   async submitApplication(app) {
-    return SB.from("applications").insert(app).select().single();
+    // Anon can INSERT but not SELECT (RLS), so don't request representation back.
+    // The application appears in the registrar's queue via realtime/refresh.
+    const { error } = await SB.from("applications").insert(app);
+    return { error, data: error ? null : { ...app, status: "pending" } };
   },
   async decideApplication(id, decision, justification = "") {
     return SB.rpc("decide_application", {

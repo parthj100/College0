@@ -2,8 +2,24 @@
 
 const StudentDash = ({ setPage }) => {
   const D = window.COLLEGE_DATA;
-  const me = D.me;
   const store = useStore();
+  // Build `me` from the live signed-in user when available; otherwise fall back
+  // to the static demo record so the page still renders for offline UI work.
+  const liveStudent = store.me?.id ? store.studentsById?.[store.me.id] : null;
+  const me = store.me
+    ? {
+        id: store.me.displayId,
+        name: store.me.fullName,
+        major: liveStudent?.major || "—",
+        year: liveStudent?.year || "",
+        gpa: liveStudent?.cached_cum_gpa ? parseFloat(liveStudent.cached_cum_gpa) : 0,
+        semesterGpa: liveStudent?.cached_sem_gpa ? parseFloat(liveStudent.cached_sem_gpa) : 0,
+        completedClasses: liveStudent?.completed_classes || 0,
+        graduationTarget: 8,
+        firstLogin: store.me.mustChangePassword,
+        passedCourses: [], failedCourses: [],
+      }
+    : D.me;
   const [honorOpen, setHonorOpen] = useState(false);
   const [complaintOpen, setComplaintOpen] = useState(false);
   const [gradOpen, setGradOpen] = useState(false);
@@ -11,6 +27,23 @@ const StudentDash = ({ setPage }) => {
   const myHonors = store.honors.filter(h => h.target === me.id && !h.redeemed);
   const myFine = store.fines[me.id];
   const [showTutorial, setShowTutorial] = useState(() => localStorage.getItem("c0-tutorial-seen") !== "1" && me.firstLogin);
+  // Live current-term enrollments (replaces hardcoded D.myClasses)
+  const [myClasses, setMyClasses] = useState([]);
+  useEffect(() => {
+    if (!store.me || !window.SB) { setMyClasses([]); return; }
+    (async () => {
+      const { data } = await window.SB.from("enrollments")
+        .select("status,grade,course:courses(code,title,instructor:instructors(profile:profiles(full_name)),time_label,room,semester)")
+        .eq("student_id", store.me.id)
+        .eq("status", "enrolled");
+      setMyClasses((data || []).map(e => ({
+        code: e.course?.code, title: e.course?.title,
+        instructor: e.course?.instructor?.profile?.full_name,
+        time: e.course?.time_label, room: e.course?.room || "",
+        myRating: null, progress: 0.5,
+      })));
+    })();
+  }, [store.me?.id, store.hydrated]);
   const dismissTutorial = () => { localStorage.setItem("c0-tutorial-seen","1"); setShowTutorial(false); };
   // Auto-assess fine on suspension
   useEffect(() => {
@@ -22,7 +55,7 @@ const StudentDash = ({ setPage }) => {
     <div className="page">
       <Eyebrow>Student · {me.id}</Eyebrow>
       <div className="row sb" style={{ alignItems: "center", flexWrap: "wrap", gap: 12, marginBottom: 18 }}>
-        <h1 className="page-title" style={{ margin: 0 }}>Good afternoon, <span className="slash">Wren.</span></h1>
+        <h1 className="page-title" style={{ margin: 0 }}>Good afternoon, <span className="slash">{(me.name || "").split(" ")[0] || "there"}.</span></h1>
         <div className="row" style={{ gap: 8, alignItems: "center" }}>
           <button className="btn" onClick={() => setComplaintOpen(true)}>File a complaint</button>
           <button className="btn primary" disabled={me.completedClasses < 8 || myWarnings.length >= 3} onClick={() => setGradOpen(true)} title={me.completedClasses < 8 ? `Available at ${me.graduationTarget} completed classes` : ""}>
@@ -92,12 +125,23 @@ const StudentDash = ({ setPage }) => {
 
       <div className="section-title">
         <h2>This semester's classes</h2>
-        <span className="count">{D.myClasses.length} registered · min. 2 required</span>
+        <span className="count">{myClasses.length} registered · min. 2 required</span>
         <a className="more" href="#" onClick={(e)=>{e.preventDefault(); setPage("registration");}}>Course catalog →</a>
       </div>
 
       <div className="grid-3 mb-4">
-        {D.myClasses.map(c => (
+        {myClasses.length === 0 && (
+          <div className="card" style={{padding:18,gridColumn:"1 / -1"}}>
+            <div className="muted" style={{fontSize:13}}>
+              {store.phase === 2 || store.specialReg
+                ? "Registration is open — pick 2 to 4 classes from the catalog."
+                : store.phase < 2
+                  ? "Course registration opens in Phase 2."
+                  : "You have no current enrollments."}
+            </div>
+          </div>
+        )}
+        {myClasses.map(c => (
           <div key={c.code} className="class-card" onClick={() => { window.__openClassCode = c.code; setPage("my-class"); }}>
             <div className="row sb">
               <div className="code">{c.code}</div>

@@ -2,18 +2,41 @@
 
 const Registration = ({ setPage }) => {
   const D = window.COLLEGE_DATA;
-  const me = D.me;
   const store = useStore();
-  const [cart, setCart] = useState(["HIST-605", "LIT-540"]);
+  // Use the signed-in user when available; fall back to the static demo user for offline UI work.
+  const me = store.me
+    ? { id: store.me.displayId, name: store.me.fullName, passedCourses: [], failedCourses: [] }
+    : D.me;
+  const [cart, setCart] = useState([]);
+  const [enrolledCodes, setEnrolledCodes] = useState([]);
   const [dept, setDept] = useState("All");
   const [q, setQ] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState("");
   // Special-registration window — passed via global flag
   const isSpecial = window.__specialReg === true;
   const displacedFrom = window.__displacedFrom || [];
   const myActiveWarnings = store.warnings.filter(w => w.target === me.id && w.active).length;
   const suspended = myActiveWarnings >= 3;
   const canRegister = store.canRegister();
+
+  // Load live enrollments for the signed-in student.
+  useEffect(() => {
+    if (!store.me || !window.SB) return;
+    (async () => {
+      const { data } = await window.SB
+        .from("enrollments")
+        .select("course:courses(code, semester)")
+        .eq("student_id", store.me.id)
+        .in("status", ["enrolled", "waitlist"]);
+      const live = (data || [])
+        .map(e => e.course?.code)
+        .filter(Boolean);
+      setEnrolledCodes(live);
+      // Pre-populate cart with what's already enrolled so the user sees their state.
+      setCart(live);
+    })();
+  }, [store.me?.id, store.hydrated]);
 
   const depts = ["All", ...new Set(D.catalog.map(c => c.dept))];
   const inCart = (code) => cart.includes(code);
@@ -197,11 +220,28 @@ const Registration = ({ setPage }) => {
                 <div className="row" style={{ gap: 6 }}><span className="accent-ink">✓</span> No time conflicts</div>
               </div>
             </div>
-            <button className="btn primary" disabled={cart.length < 2 || suspended || !canRegister} onClick={() => setSubmitted(true)}
+            <button className="btn primary" disabled={cart.length < 2 || suspended || !canRegister || submitted} onClick={async () => {
+              setSubmitError("");
+              const toAdd = cart.filter(c => !enrolledCodes.includes(c));
+              const failures = [];
+              for (const code of toAdd) {
+                const courseRow = store.coursesByCode?.[code];
+                if (!courseRow) { failures.push(`${code}: not in catalog`); continue; }
+                const { error } = await window.Backend.registerForCourse(courseRow.id);
+                if (error) failures.push(`${code}: ${error.message}`);
+              }
+              if (failures.length) {
+                setSubmitError(failures.join(" · "));
+              } else {
+                setSubmitted(true);
+                setEnrolledCodes(cart);
+              }
+            }}
               style={submitted ? {background:"var(--ok)",borderColor:"var(--ok)"} : {}}
               title={suspended ? "Suspended — cannot register" : !canRegister ? "Registration is not open in the current phase" : ""}>
               {submitted ? "✓ Registered!" : suspended ? "Blocked · suspended" : !canRegister ? "Locked · phase " + store.phase : "Submit registration →"}
             </button>
+            {submitError && <div className="warn-banner bad mt-2" style={{padding:"8px 12px"}}><span className="bar" style={{background:"var(--bad)"}}/><span style={{fontSize:12}}>{submitError}</span></div>}
             <div className="footnote" style={{ whiteSpace: "normal", lineHeight: 1.5 }}>Registration closes Feb 2, 23:59.</div>
           </div>
         </div>

@@ -109,9 +109,22 @@ window.Backend = {
     return { error, data: error ? null : { ...app, status: "pending" } };
   },
   async decideApplication(id, decision, justification = "") {
-    return SB.rpc("decide_application", {
+    const r = await SB.rpc("decide_application", {
       p_app_id: id, p_decision: decision, p_justification: justification,
     });
+    if (r.error || decision !== "accept") return r;
+    // On accept: also provision the auth user + role row so they can actually sign in.
+    const session = await Backend.session();
+    const res = await fetch(`${SB_CONFIG.url}/functions/v1/provision-applicant`, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${session?.access_token}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ application_id: id }),
+    });
+    const provisionResult = await res.json();
+    return { ...r, provision: provisionResult };
   },
 
   // ---- Phases ----

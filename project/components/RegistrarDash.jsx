@@ -43,6 +43,16 @@ const RegistrarDash = ({ setPage }) => {
       <Eyebrow>Registrar · Full access</Eyebrow>
       <h1 className="page-title">Admin <span className="slash">Console.</span></h1>
 
+      {/* Summary tiles */}
+      <div className="stat-row" style={{ gridTemplateColumns: "repeat(6,1fr)" }}>
+        <div className="stat-tile"><div className="k">Students</div><div className="v">{Object.values(store.studentsById||{}).length || 12}</div><div className="d">{pending.filter(a=>a.type==="student").length} application{pending.filter(a=>a.type==="student").length===1?"":"s"} pending</div></div>
+        <div className="stat-tile"><div className="k">Instructors</div><div className="v">{Object.values(store.instructorsByDisplayId||{}).length || 9}</div><div className="d">{pending.filter(a=>a.type==="instructor").length} application{pending.filter(a=>a.type==="instructor").length===1?"":"s"} pending</div></div>
+        <div className="stat-tile"><div className="k">Current phase</div><div className="v">{phase}</div><div className="d">{phaseNames[phase-1]}</div></div>
+        <div className="stat-tile"><div className="k">Active warnings</div><div className="v">{store.warnings.filter(w=>w.active).length}</div><div className="d">Students &amp; instructors</div></div>
+        <div className="stat-tile"><div className="k">Complaints</div><div className="v">{complaints.filter(c=>c.status==="pending").length}</div><div className="d">Awaiting resolution</div></div>
+        <div className="stat-tile"><div className="k">Taboo words</div><div className="v">{tabooWords.length}</div><div className="d">In active list</div></div>
+      </div>
+
       {/* Tabs */}
       <div className="tabs">
         {["overview","applications","setup","graduations","phases","complaints","taboo","warnings"].map(t => (
@@ -734,36 +744,55 @@ window.PhasesTab = PhasesTab;
 
 // ===== Class set-up tab — registrar assigns instructors, caps, times, required flag =====
 const ClassSetupTab = ({ D, phase }) => {
-  const seed = D.classEnrollments.map(c => ({
-    code: c.code, instructor: c.instructor, instructorName: c.instructorName,
-    cap: c.cap, time: ["Mon/Wed 09:00","Tue/Thu 11:00","Mon/Wed 14:00","Tue/Thu 15:30","Fri 10:00"][Math.floor(Math.random()*5)],
-    required: ["PHIL-612","LIT-540","CS-710","MATH-701","LING-611"].includes(c.code),
-    locked: phase > 1,
-  }));
-  const [classes, setClasses] = useState(seed);
+  const store = useStore();
+  const locked = phase > 1;
+  // Pull from live coursesByCode (hydrated). Map to UI shape and let registrar persist edits.
+  const classes = Object.values(store.coursesByCode || {}).map(c => ({
+    id: c.id, code: c.code, title: c.title,
+    instructorDisplayId: c.instructorDisplayId, instructorName: c.instructorName,
+    cap: c.cap, time: c.time, status: c.status, required: false, locked,
+  })).sort((a,b)=>a.code.localeCompare(b.code));
+
   const [draftCode, setDraftCode] = useState("");
+  const [draftTitle, setDraftTitle] = useState("");
   const [draftInst, setDraftInst] = useState("");
   const [draftCap, setDraftCap] = useState(12);
+  const [err, setErr] = useState("");
 
-  const instructors = [
-    { id: "i-Arkwright", name: "M. Arkwright" },
-    { id: "i-Okonkwo",   name: "C. Okonkwo" },
-    { id: "i-Sato",      name: "H. Sato" },
-    { id: "i-Lambert",   name: "P. Lambert" },
-    { id: "i-Moreau",    name: "T. Moreau" },
-    { id: "i-Lindqvist", name: "B. Lindqvist" },
-    { id: "i-Duval",     name: "R. Duval" },
-    { id: "i-Devi",      name: "N. Devi" },
-    { id: "i-Abiola",    name: "E. Abiola" },
-  ];
+  const instructors = Object.entries(store.instructorsByDisplayId || {}).map(([displayId, info]) => ({
+    id: info.id, displayId, name: info.fullName,
+  }));
 
-  const update = (code, patch) => setClasses(classes.map(c => c.code === code ? { ...c, ...patch } : c));
-  const remove = (code) => setClasses(classes.filter(c => c.code !== code));
-  const add = () => {
+  const update = async (id, patch) => {
+    setErr("");
+    const { error } = await window.SB.from('courses').update(patch).eq('id', id);
+    if (error) setErr(error.message);
+    else await store.refreshFromBackend();
+  };
+  const remove = async (id) => {
+    setErr("");
+    const { error } = await window.SB.from('courses').delete().eq('id', id);
+    if (error) setErr(error.message);
+    else await store.refreshFromBackend();
+  };
+  const add = async () => {
+    setErr("");
     if (!draftCode.trim() || !draftInst) return;
-    const inst = instructors.find(i => i.id === draftInst);
-    setClasses([...classes, { code: draftCode.toUpperCase(), instructor: draftInst, instructorName: inst.name, cap: draftCap, time: "Mon/Wed 09:00", required: false, locked: false }]);
-    setDraftCode(""); setDraftInst(""); setDraftCap(12);
+    const inst = instructors.find(i => i.displayId === draftInst);
+    const { error } = await window.SB.from('courses').insert({
+      code: draftCode.trim().toUpperCase(),
+      title: draftTitle.trim() || draftCode.trim().toUpperCase(),
+      instructor_id: inst.id,
+      department: 'General',
+      semester: store.currentSemester || 'Spring 2026',
+      time_label: 'Mon/Wed 09:00',
+      day_mask: [1,3],
+      start_hour: 9, end_hour: 10.5,
+      cap: draftCap, required: false,
+    });
+    if (error) { setErr(error.message); return; }
+    setDraftCode(""); setDraftTitle(""); setDraftInst(""); setDraftCap(12);
+    await store.refreshFromBackend();
   };
 
   return (
@@ -773,55 +802,42 @@ const ClassSetupTab = ({ D, phase }) => {
         <div className="warn-banner mb-3"><span className="bar"/><span>Phase {phase} is active — class set-up is read-only. Course rosters are locked once registration opens.</span></div>
       )}
 
+      {err && <div className="warn-banner bad mb-2"><span className="bar" style={{background:"var(--bad)"}}/><span style={{fontSize:12.5}}>{err}</span></div>}
       <div className="card" style={{padding:0,marginBottom:24,overflow:"hidden"}}>
         <table className="data">
           <thead>
             <tr>
               <th>Code</th>
+              <th>Title</th>
               <th>Instructor</th>
               <th className="num">Cap</th>
               <th>Time</th>
-              <th style={{textAlign:"center"}}>Required</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
             {classes.map(c => (
-              <tr key={c.code}>
+              <tr key={c.id}>
                 <td className="id"><b>{c.code}</b></td>
+                <td style={{fontSize:13}}>{c.title}</td>
                 <td>
                   {c.locked ? c.instructorName : (
-                    <select className="select" style={{padding:"4px 8px",fontSize:12.5}} value={c.instructor} onChange={e => {
-                      const inst = instructors.find(i => i.id === e.target.value);
-                      update(c.code, { instructor: inst.id, instructorName: inst.name });
+                    <select className="select" style={{padding:"4px 8px",fontSize:12.5}} value={c.instructorDisplayId} onChange={e => {
+                      const inst = instructors.find(i => i.displayId === e.target.value);
+                      update(c.id, { instructor_id: inst.id });
                     }}>
-                      {instructors.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
+                      {instructors.map(i => <option key={i.displayId} value={i.displayId}>{i.name}</option>)}
                     </select>
                   )}
                 </td>
                 <td className="num">
                   {c.locked ? c.cap : (
-                    <input className="input" style={{padding:"4px 6px",fontSize:12.5,width:60,textAlign:"right"}} type="number" value={c.cap} onChange={e => update(c.code, { cap: +e.target.value || 0 })}/>
+                    <input className="input" style={{padding:"4px 6px",fontSize:12.5,width:60,textAlign:"right"}} type="number" defaultValue={c.cap} onBlur={e => update(c.id, { cap: +e.target.value || 0 })}/>
                   )}
                 </td>
-                <td className="mono" style={{fontSize:12}}>
-                  {c.locked ? c.time : (
-                    <select className="select" style={{padding:"4px 8px",fontSize:12}} value={c.time} onChange={e => update(c.code, { time: e.target.value })}>
-                      <option>Mon/Wed 09:00</option>
-                      <option>Mon/Wed 14:00</option>
-                      <option>Tue/Thu 11:00</option>
-                      <option>Tue/Thu 15:30</option>
-                      <option>Fri 10:00</option>
-                    </select>
-                  )}
-                </td>
-                <td style={{textAlign:"center"}}>
-                  {c.locked ? (c.required ? <Chip tone="ok">Required</Chip> : <span className="muted" style={{fontSize:12}}>—</span>) : (
-                    <input type="checkbox" checked={c.required} onChange={e => update(c.code, { required: e.target.checked })}/>
-                  )}
-                </td>
+                <td className="mono" style={{fontSize:12}}>{c.time}</td>
                 <td style={{textAlign:"right"}}>
-                  {!c.locked && <button className="btn sm ghost" onClick={() => remove(c.code)} style={{color:"var(--bad)"}}>Remove</button>}
+                  {!c.locked && <button className="btn sm ghost" onClick={() => remove(c.id)} style={{color:"var(--bad)"}}>Remove</button>}
                 </td>
               </tr>
             ))}
@@ -839,10 +855,14 @@ const ClassSetupTab = ({ D, phase }) => {
                 <input className="input" style={{width:140}} placeholder="LIT-501" value={draftCode} onChange={e=>setDraftCode(e.target.value)}/>
               </div>
               <div>
+                <div className="footnote mb-1">TITLE</div>
+                <input className="input" style={{width:220}} placeholder="Course title" value={draftTitle} onChange={e=>setDraftTitle(e.target.value)}/>
+              </div>
+              <div>
                 <div className="footnote mb-1">INSTRUCTOR</div>
                 <select className="select" style={{minWidth:200}} value={draftInst} onChange={e=>setDraftInst(e.target.value)}>
                   <option value="">— pick —</option>
-                  {instructors.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
+                  {instructors.map(i => <option key={i.displayId} value={i.displayId}>{i.name}</option>)}
                 </select>
               </div>
               <div>

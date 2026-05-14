@@ -60,9 +60,6 @@ const Login = ({ setPage, setRole }) => {
           College<span className="slash">/</span>0
         </div>
         <div style={{ fontFamily: "var(--font-mono)", fontSize: 11.5, opacity: 0.7, lineHeight: 1.7 }}>
-          ——— 47 students<br/>
-          ——— 12 instructors<br/>
-          ——— 1 registrar<br/>
           ——— established 2019
         </div>
       </div>

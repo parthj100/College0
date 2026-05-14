@@ -4,7 +4,7 @@ const Landing = ({ setPage, setRole }) => {
   const D = window.COLLEGE_DATA;
   return (
     <div className="page">
-      <section className="hero">
+      <section className="hero" style={{ gridTemplateColumns: "1fr" }}>
         <div>
           <div className="kicker"><Eyebrow>College0 · Est. 2019</Eyebrow></div>
           <h1>
@@ -23,13 +23,6 @@ const Landing = ({ setPage, setRole }) => {
             <button className="btn ghost" onClick={() => setPage("login")}>I already have a login</button>
           </div>
         </div>
-        <aside className="hero-aside">
-          <div className="stat"><span>Matriculated</span><b>47</b></div>
-          <div className="stat"><span>Instructors</span><b>12</b></div>
-          <div className="stat"><span>Classes this term</span><b>18</b></div>
-          <div className="stat"><span>Avg. cohort GPA</span><b>3.31</b></div>
-          <div className="footnote">Figures for Spring 2026, as of 17 Apr.</div>
-        </aside>
       </section>
 
       <section style={{ marginTop: 40 }}>

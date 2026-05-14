@@ -43,16 +43,6 @@ const RegistrarDash = ({ setPage }) => {
       <Eyebrow>Registrar · Full access</Eyebrow>
       <h1 className="page-title">Admin <span className="slash">Console.</span></h1>
 
-      {/* Summary tiles */}
-      <div className="stat-row" style={{ gridTemplateColumns: "repeat(5,1fr)" }}>
-        <div className="stat-tile"><div className="k">Students</div><div className="v">47</div><div className="d">4 applications pending</div></div>
-        <div className="stat-tile"><div className="k">Instructors</div><div className="v">12</div><div className="d">1 application pending</div></div>
-        <div className="stat-tile"><div className="k">Current phase</div><div className="v">{phase}</div><div className="d">{phaseNames[phase-1]}</div></div>
-        <div className="stat-tile"><div className="k">Active warnings</div><div className="v">{store.warnings.filter(w=>w.active).length}</div><div className="d">Across students &amp; instructors</div></div>
-        <div className="stat-tile"><div className="k">Complaints</div><div className="v">{complaints.filter(c=>c.status==="pending").length}</div><div className="d">Awaiting resolution</div></div>
-        <div className="stat-tile"><div className="k">Taboo words</div><div className="v">{tabooWords.length}</div><div className="d">In active list</div></div>
-      </div>
-
       {/* Tabs */}
       <div className="tabs">
         {["overview","applications","setup","graduations","phases","complaints","taboo","warnings"].map(t => (
@@ -107,7 +97,7 @@ const RegistrarDash = ({ setPage }) => {
             </div>
           </div>
           <div>
-            <div className="section-title"><h2>All students</h2><span className="count">47 active</span></div>
+            <div className="section-title"><h2>All students</h2></div>
             <div className="card">
               <table className="data">
                 <thead><tr><th>ID</th><th>Student</th><th>Major</th><th className="num">GPA</th><th className="num">Warns</th></tr></thead>
@@ -127,7 +117,7 @@ const RegistrarDash = ({ setPage }) => {
             </div>
           </div>
           <div>
-            <div className="section-title"><h2>All instructors</h2><span className="count">12 active</span></div>
+            <div className="section-title"><h2>All instructors</h2></div>
             <div className="card">
               <table className="data">
                 <thead><tr><th>Name</th><th>Dept</th><th>Courses</th><th className="num">Warns</th></tr></thead>

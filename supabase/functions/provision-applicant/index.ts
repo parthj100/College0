@@ -1,20 +1,18 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.46.1';
 
-// Spec §2: "Accepted new students will receive a unique student id and password
-// that should be changed in the first login." decide_application records the
-// decision; this function actually mints the auth.users row + the role-specific
-// row + stamps the issued credentials on the application. Registrar-only.
+// Spec §2: Accepted applicants get a unique id + temp password. demo edition:
+// fixed temp password "123456" (override via DEMO_TEMP_PASSWORD secret), and
+// we don't force a password-change on first login — the user can change it
+// from their profile later if they want.
+//
+// If the email already exists in auth (re-applies, leftover tests, etc.) we
+// adopt that user and reset the password instead of failing.
 
 const CORS = {
   'access-control-allow-origin': '*',
   'access-control-allow-headers': 'authorization, content-type, apikey, x-client-info',
   'access-control-allow-methods': 'POST, OPTIONS',
 };
-
-// Demo system: temp password is the fixed string "123456" so it's easy to
-// communicate verbally. The user is forced to change it on first login
-// (must_change_password=true is set in user_metadata). Override with the
-// DEMO_TEMP_PASSWORD secret on Supabase if needed.
 const DEMO_TEMP_PASSWORD = Deno.env.get('DEMO_TEMP_PASSWORD') ?? '123456';
 
 Deno.serve(async (req) => {
@@ -36,59 +34,88 @@ Deno.serve(async (req) => {
   if (prof?.role !== 'registrar') return json({ error: 'registrar only' }, 403);
 
   let body: { application_id?: number } = {};
-  try { body = await req.json(); } catch { /* fine */ }
+  try { body = await req.json(); } catch {}
   if (!body.application_id) return json({ error: 'application_id required' }, 400);
 
   const { data: app, error: aErr } = await supabase
     .from('applications').select('*').eq('id', body.application_id).single();
   if (aErr || !app) return json({ error: 'application not found' }, 404);
   if (app.status !== 'accept') return json({ error: 'application is not accepted yet' }, 409);
-  if (app.issued_user_id) return json({ error: 'already provisioned', issued_user_id: app.issued_user_id }, 409);
 
+  // Adopt existing auth user when present (so re-provisioning doesn't fail)
+  const { data: list } = await supabase.auth.admin.listUsers({ perPage: 1000 });
+  const existing = list?.users?.find(x => x.email?.toLowerCase() === app.email.toLowerCase());
+
+  let newUserId: string;
   let display_id: string;
-  if (app.type === 'student') {
-    const { count } = await supabase
-      .from('profiles').select('id', { count: 'exact', head: true }).like('display_id', 's-%');
-    display_id = 's-' + String((count ?? 0) + 1).padStart(5, '0');
+  const password = DEMO_TEMP_PASSWORD;
+
+  if (existing) {
+    newUserId = existing.id;
+    display_id = (existing.user_metadata?.display_id as string) || await pickDisplayId(supabase, app);
+    const { error: upErr } = await supabase.auth.admin.updateUserById(newUserId, {
+      password,
+      user_metadata: {
+        ...(existing.user_metadata || {}),
+        display_id,
+        full_name: app.name,
+        role: app.type,
+        must_change_password: false,
+      },
+    });
+    if (upErr) return json({ error: 'reset failed: ' + upErr.message }, 500);
+    await supabase.from('profiles').upsert({
+      id: newUserId,
+      display_id,
+      full_name: app.name,
+      role: app.type,
+      must_change_password: false,
+    });
   } else {
-    const last = (app.name as string).trim().split(/\s+/).pop()!.replace(/[^A-Za-z0-9]/g, '');
-    display_id = 'i-' + last;
-    let suffix = 1;
-    while (true) {
-      const { count } = await supabase
-        .from('profiles').select('id', { count: 'exact', head: true }).eq('display_id', display_id);
-      if ((count ?? 0) === 0) break;
-      display_id = 'i-' + last + suffix++;
-    }
+    display_id = await pickDisplayId(supabase, app);
+    const { data: created, error: createErr } = await supabase.auth.admin.createUser({
+      email: app.email,
+      password,
+      email_confirm: true,
+      user_metadata: { display_id, full_name: app.name, role: app.type, must_change_password: false },
+    });
+    if (createErr) return json({ error: createErr.message }, 500);
+    newUserId = created.user!.id;
   }
 
-  const password = DEMO_TEMP_PASSWORD;
-  const { data: created, error: createErr } = await supabase.auth.admin.createUser({
-    email: app.email,
-    password,
-    email_confirm: true,
-    user_metadata: { display_id, full_name: app.name, role: app.type, must_change_password: true },
-  });
-  if (createErr) return json({ error: createErr.message }, 500);
-  const newUserId = created.user!.id;
-
   if (app.type === 'student') {
-    const { error } = await supabase.from('students').insert({ user_id: newUserId, major: app.department });
-    if (error) return json({ error: 'student row: ' + error.message }, 500);
+    await supabase.from('students').upsert({ user_id: newUserId, major: app.department });
     const { data: q } = await supabase.from('program_quotas').select('enrolled').eq('department', app.department).single();
     if (q) await supabase.from('program_quotas').update({ enrolled: q.enrolled + 1 }).eq('department', app.department);
   } else {
-    const { error } = await supabase.from('instructors').insert({ user_id: newUserId, department: app.department });
-    if (error) return json({ error: 'instructor row: ' + error.message }, 500);
+    await supabase.from('instructors').upsert({ user_id: newUserId, department: app.department });
   }
 
   await supabase.from('applications').update({ issued_user_id: newUserId, temp_password: password }).eq('id', app.id);
 
   return json({
     application_id: app.id, display_id, user_id: newUserId,
-    email: app.email, temp_password: password, must_change_password: true,
+    email: app.email, temp_password: password, must_change_password: false,
+    reused_existing: !!existing,
   });
 });
+
+async function pickDisplayId(supabase: any, app: any): Promise<string> {
+  if (app.type === 'student') {
+    const { count } = await supabase
+      .from('profiles').select('id', { count: 'exact', head: true }).like('display_id', 's-%');
+    return 's-' + String((count ?? 0) + 1).padStart(5, '0');
+  }
+  const last = (app.name as string).trim().split(/\s+/).pop()!.replace(/[^A-Za-z0-9]/g, '');
+  let display = 'i-' + last;
+  let suffix = 1;
+  while (true) {
+    const { count } = await supabase
+      .from('profiles').select('id', { count: 'exact', head: true }).eq('display_id', display);
+    if ((count ?? 0) === 0) return display;
+    display = 'i-' + last + suffix++;
+  }
+}
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {

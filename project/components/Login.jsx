@@ -1,12 +1,8 @@
-// Login + first-time password change
+// Login
 
 const Login = ({ setPage, setRole }) => {
-  const [mode, setMode] = useState("login"); // login | firstTime
   const [username, setUsername] = useState("s-00029");
   const [password, setPassword] = useState("");
-  const [tempPass, setTempPass] = useState("");
-  const [newPass, setNewPass] = useState("");
-  const [confirmPass, setConfirmPass] = useState("");
   const [error, setError] = useState("");
 
   const D = window.COLLEGE_DATA;
@@ -24,33 +20,17 @@ const Login = ({ setPage, setRole }) => {
     const idTrim = username.trim();
     const { data, error: e } = await window.Backend.signIn(idTrim, password);
     if (e) { setError(e.message || "Sign-in failed"); return; }
-    // Read the authoritative role + first-login flag from the profile.
-    // (Looking up by display_id or by email substring is unreliable — for
-    // example, "registrar@college0.demo" doesn't match the bare "registrar"
-    // string in resolveRole, so without this we'd default to "student".)
+    // Route from the authoritative profile role.
     const { data: prof } = await window.SB
       .from("profiles")
-      .select("role, must_change_password")
+      .select("role")
       .eq("id", data.user.id)
       .single();
     const profileRole = prof?.role || resolveRole(idTrim);
     setRole(profileRole);
-    if (prof?.must_change_password) { setMode("firstTime"); return; }
     if (profileRole === "registrar") setPage("registrar-dash");
     else if (profileRole === "instructor") setPage("instructor-roster");
     else setPage("student-dashboard");
-  };
-
-  const setNewPassword = async () => {
-    setError("");
-    if (newPass.length < 12) { setError("Password must be at least 12 characters."); return; }
-    if (newPass !== confirmPass) { setError("Passwords don't match."); return; }
-    const { error: e } = await window.Backend.changePassword(newPass);
-    if (e) { setError(e.message || "Failed to set password."); return; }
-    D.me.firstLogin = false;
-    localStorage.setItem("c0-pw-set", "1");
-    setRole("student");
-    setPage("student-dashboard");
   };
 
   return (
@@ -72,53 +52,27 @@ const Login = ({ setPage, setRole }) => {
 
       <div className="form-wrap">
         <div className="form">
-          <Eyebrow>{mode === "firstTime" ? "First login · change password" : "Sign in"}</Eyebrow>
+          <Eyebrow>Sign in</Eyebrow>
           <h2 className="display" style={{ fontSize: 34, letterSpacing: "-0.02em", lineHeight: 1.1 }}>
-            {mode === "firstTime" ? "Welcome. Pick a new password." :
-             "Return to your records."}
+            Return to your records.
           </h2>
 
-          {mode === "login" && (
-            <>
-              <div>
-                <div className="footnote mb-1">STUDENT ID, INSTRUCTOR ID, OR USERNAME</div>
-                <input className="input" value={username} onChange={e => setUsername(e.target.value)} placeholder="s-00029, i-Okonkwo, or registrar" />
-              </div>
-              <div>
-                <div className="footnote mb-1">PASSWORD</div>
-                <input className="input" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••••" />
-              </div>
-              <button className="btn primary" onClick={signIn}>Sign in →</button>
-              <div className="sb" style={{ fontSize: 12 }}>
-                <a href="#" className="muted" onClick={(e) => { e.preventDefault(); setMode("firstTime"); }}>First login?</a>
-                <a href="#" className="muted" onClick={(e) => { e.preventDefault(); setRole("visitor"); setPage("apply"); }}>Apply to the program →</a>
-              </div>
-              <div className="hairline" style={{ marginTop: 12, paddingTop: 16 }}>
-                <a href="#" className="muted" style={{ fontSize: 12 }} onClick={(e) => { e.preventDefault(); setRole("visitor"); setPage("landing"); }}>← Continue as visitor</a>
-              </div>
-            </>
-          )}
-
-          {mode === "firstTime" && (
-            <>
-              <div className="warn-banner"><span className="bar"/><span>For security, new students must replace the password emailed by the registrar.</span></div>
-              <div>
-                <div className="footnote mb-1">TEMPORARY PASSWORD</div>
-                <input className="input" type="password" value={tempPass} onChange={e => setTempPass(e.target.value)} placeholder="from your acceptance email" />
-              </div>
-              <div>
-                <div className="footnote mb-1">NEW PASSWORD</div>
-                <input className="input" type="password" value={newPass} onChange={e => setNewPass(e.target.value)} placeholder="12+ characters" />
-              </div>
-              <div>
-                <div className="footnote mb-1">CONFIRM</div>
-                <input className="input" type="password" value={confirmPass} onChange={e => setConfirmPass(e.target.value)} placeholder="again" />
-              </div>
-              {error && <div className="warn-banner bad"><span className="bar"/><span>{error}</span></div>}
-              <button className="btn primary" onClick={setNewPassword}>Set password & continue →</button>
-              <a href="#" className="muted" style={{ fontSize: 12 }} onClick={(e)=>{e.preventDefault(); setMode("login");}}>← back</a>
-            </>
-          )}
+          <div>
+            <div className="footnote mb-1">STUDENT ID, INSTRUCTOR ID, OR EMAIL</div>
+            <input className="input" value={username} onChange={e => setUsername(e.target.value)} placeholder="s-00029, i-Okonkwo, or registrar" />
+          </div>
+          <div>
+            <div className="footnote mb-1">PASSWORD</div>
+            <input className="input" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••••" onKeyDown={e => { if (e.key === "Enter") signIn(); }}/>
+          </div>
+          {error && <div className="warn-banner bad"><span className="bar"/><span>{error}</span></div>}
+          <button className="btn primary" onClick={signIn}>Sign in →</button>
+          <div className="sb" style={{ fontSize: 12 }}>
+            <a href="#" className="muted" onClick={(e) => { e.preventDefault(); setRole("visitor"); setPage("apply"); }}>Apply to the program →</a>
+          </div>
+          <div className="hairline" style={{ marginTop: 12, paddingTop: 16 }}>
+            <a href="#" className="muted" style={{ fontSize: 12 }} onClick={(e) => { e.preventDefault(); setRole("visitor"); setPage("landing"); }}>← Continue as visitor</a>
+          </div>
         </div>
       </div>
     </div>

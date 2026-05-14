@@ -783,15 +783,19 @@ const ClassSetupTab = ({ D, phase }) => {
     cap: c.cap, time: c.time, status: c.status, required: false, locked,
   })).sort((a,b)=>a.code.localeCompare(b.code));
 
-  const [draftCode, setDraftCode] = useState("");
-  const [draftTitle, setDraftTitle] = useState("");
-  const [draftInst, setDraftInst] = useState("");
-  const [draftCap, setDraftCap] = useState(12);
-  const [err, setErr] = useState("");
-
   const instructors = Object.entries(store.instructorsByDisplayId || {}).map(([displayId, info]) => ({
     id: info.id, displayId, name: info.fullName,
   }));
+  const [draftCode, setDraftCode] = useState("");
+  const [draftTitle, setDraftTitle] = useState("");
+  const [draftInst, setDraftInst] = useState(() => instructors[0]?.displayId || "");
+  const [draftCap, setDraftCap] = useState(12);
+  const [err, setErr] = useState("");
+  const [ok, setOk] = useState("");
+  // Auto-pick first instructor once they finish hydrating
+  useEffect(() => {
+    if (!draftInst && instructors.length) setDraftInst(instructors[0].displayId);
+  }, [instructors.length]);
 
   const update = async (id, patch) => {
     setErr("");
@@ -806,12 +810,15 @@ const ClassSetupTab = ({ D, phase }) => {
     else await store.refreshFromBackend();
   };
   const add = async () => {
-    setErr("");
-    if (!draftCode.trim() || !draftInst) return;
+    setErr(""); setOk("");
+    if (!draftCode.trim()) { setErr("Course code is required."); return; }
+    if (!draftInst) { setErr("Pick an instructor."); return; }
     const inst = instructors.find(i => i.displayId === draftInst);
+    if (!inst) { setErr("Instructor not found."); return; }
+    const code = draftCode.trim().toUpperCase();
     const { error } = await window.SB.from('courses').insert({
-      code: draftCode.trim().toUpperCase(),
-      title: draftTitle.trim() || draftCode.trim().toUpperCase(),
+      code,
+      title: draftTitle.trim() || code,
       instructor_id: inst.id,
       department: 'General',
       semester: store.currentSemester || 'Spring 2026',
@@ -821,7 +828,9 @@ const ClassSetupTab = ({ D, phase }) => {
       cap: draftCap, required: false,
     });
     if (error) { setErr(error.message); return; }
-    setDraftCode(""); setDraftTitle(""); setDraftInst(""); setDraftCap(12);
+    setOk(`Added ${code}.`);
+    setTimeout(() => setOk(""), 3000);
+    setDraftCode(""); setDraftTitle(""); setDraftCap(12);
     await store.refreshFromBackend();
   };
 
@@ -899,9 +908,11 @@ const ClassSetupTab = ({ D, phase }) => {
                 <div className="footnote mb-1">CAP</div>
                 <input className="input" type="number" style={{width:80,textAlign:"right"}} value={draftCap} onChange={e=>setDraftCap(+e.target.value || 0)}/>
               </div>
-              <button className="btn primary" onClick={add} disabled={!draftCode.trim() || !draftInst}>Add course →</button>
+              <button className="btn primary" onClick={add} disabled={!draftCode.trim()}>Add course →</button>
             </div>
-            <div className="footnote" style={{marginTop:10}}>Mark required courses with the checkbox in the table above. Required courses are checked at graduation; missing ones earn the student a "reckless application" warning.</div>
+            {err && <div className="warn-banner bad mt-2" style={{padding:"8px 12px"}}><span className="bar" style={{background:"var(--bad)"}}/><span style={{fontSize:12.5}}>{err}</span></div>}
+            {ok && <div className="warn-banner ok mt-2" style={{padding:"8px 12px"}}><span className="bar" style={{background:"var(--ok)"}}/><span style={{fontSize:12.5}}>{ok}</span></div>}
+            <div className="footnote" style={{marginTop:10}}>The new course defaults to Mon/Wed 09:00, dept "General", cap 12 — you can edit the row above after creation. Required-course flag is set per-course (none added here).</div>
           </div>
         </>
       )}

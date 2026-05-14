@@ -1,8 +1,8 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.46.1';
 
-// Spec §9: AI Q&A with role-gated local KB + LLM fallback (hallucination warning).
-// Pipeline: role gate → user-context fast paths → vector search (if embeddings exist)
-//   → lexical KB fallback → LLM fallback (if ANTHROPIC_API_KEY set).
+// Spec §9: role-gated KB + LLM fallback with hallucination warning.
+// Pipeline: role gate → user-context fast paths → vector search (if embeddings
+// exist) → lexical KB → LLM fallback (Anthropic OR OpenAI, whichever key is set).
 
 const CORS = {
   'access-control-allow-origin': '*',
@@ -106,7 +106,7 @@ async function answerFromVector(supabase: any, role: string, q: string): Promise
   const { data, error } = await supabase.rpc('match_kb_docs', { query_embedding: vec, p_role: role, p_k: 1 });
   if (error || !data || data.length === 0) return null;
   const best = data[0];
-  if (best.distance > 0.45) return null; // weak match — fall through to lexical/LLM
+  if (best.distance > 0.45) return null;
   return { body: best.body, source: `${best.source} (vector)`, kind: 'local' };
 }
 
@@ -131,15 +131,9 @@ async function answerFromKB(supabase: any, role: string, q: string): Promise<Ans
   return { body: best.doc.body, source: best.doc.source, kind: 'local' };
 }
 
-async function answerFromLLM(question: string): Promise<Answer> {
-  const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
-  if (!apiKey) {
-    return {
-      body: "I don't have this in the College0 knowledge base, and no external model is configured. Try asking a registrar.",
-      source: 'No source',
-      kind: 'llm',
-    };
-  }
+const LLM_SYSTEM = 'You are an assistant for College0, a small fictional graduate program. Answer the user concisely. If the answer is not part of widely-known knowledge, say so plainly. Always end your answer with the sentence "Please verify with the registrar." (no quotes), so the caller knows this came from a general model and might be wrong.';
+
+async function answerFromAnthropic(question: string, apiKey: string): Promise<Answer | null> {
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -151,20 +145,61 @@ async function answerFromLLM(question: string): Promise<Answer> {
       body: JSON.stringify({
         model: 'claude-haiku-4-5',
         max_tokens: 400,
-        system: 'You answer questions about College0, a small fictional graduate program. Be concise. If the answer is not part of widely-known knowledge, say so plainly and remind the user to verify with the registrar.',
+        system: LLM_SYSTEM,
         messages: [{ role: 'user', content: question }],
       }),
     });
     const json = await res.json();
-    const text = json?.content?.[0]?.text ?? "I couldn't get a useful answer from the external model.";
-    return { body: text, source: 'External LLM · Claude Haiku 4.5', kind: 'llm' };
+    if (!res.ok) return { body: `Anthropic API ${res.status}: ${json?.error?.message || 'unknown error'}`, source: 'External LLM · error', kind: 'llm' };
+    const text = json?.content?.[0]?.text;
+    if (!text) return null;
+    return { body: text, source: 'External LLM · Anthropic (Claude Haiku 4.5)', kind: 'llm' };
   } catch (e) {
-    return {
-      body: `LLM call failed: ${e instanceof Error ? e.message : String(e)}`,
-      source: 'External LLM · error',
-      kind: 'llm',
-    };
+    return { body: `Anthropic call failed: ${e instanceof Error ? e.message : String(e)}`, source: 'External LLM · error', kind: 'llm' };
   }
+}
+
+async function answerFromOpenAI(question: string, apiKey: string): Promise<Answer | null> {
+  try {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        max_tokens: 400,
+        messages: [
+          { role: 'system', content: LLM_SYSTEM },
+          { role: 'user', content: question },
+        ],
+      }),
+    });
+    const json = await res.json();
+    if (!res.ok) return { body: `OpenAI API ${res.status}: ${json?.error?.message || 'unknown error'}`, source: 'External LLM · error', kind: 'llm' };
+    const text = json?.choices?.[0]?.message?.content;
+    if (!text) return null;
+    return { body: text, source: 'External LLM · OpenAI (gpt-4o-mini)', kind: 'llm' };
+  } catch (e) {
+    return { body: `OpenAI call failed: ${e instanceof Error ? e.message : String(e)}`, source: 'External LLM · error', kind: 'llm' };
+  }
+}
+
+async function answerFromLLM(question: string): Promise<Answer> {
+  const anth = Deno.env.get('ANTHROPIC_API_KEY');
+  const oai = Deno.env.get('OPENAI_API_KEY');
+  // Prefer Anthropic if both are set; otherwise use whichever is set.
+  if (anth) {
+    const a = await answerFromAnthropic(question, anth);
+    if (a) return a;
+  }
+  if (oai) {
+    const a = await answerFromOpenAI(question, oai);
+    if (a) return a;
+  }
+  return {
+    body: "I don't have this in the College0 knowledge base, and no external model is configured. Try asking a registrar.",
+    source: 'No source',
+    kind: 'llm',
+  };
 }
 
 Deno.serve(async (req) => {
@@ -177,7 +212,7 @@ Deno.serve(async (req) => {
   }
 
   let payload: { question?: string } = {};
-  try { payload = await req.json(); } catch { /* fine */ }
+  try { payload = await req.json(); } catch {}
   const question = (payload.question ?? '').trim();
   if (!question) {
     return new Response(JSON.stringify({ error: 'question is required' }), {

@@ -24,11 +24,17 @@ const Login = ({ setPage, setRole }) => {
     const idTrim = username.trim();
     const { data, error: e } = await window.Backend.signIn(idTrim, password);
     if (e) { setError(e.message || "Sign-in failed"); return; }
-    const profileRole = window.CollegeStore.profilesByDisplayId[idTrim]?.role
-      || resolveRole(idTrim);
+    // Read the authoritative role + first-login flag from the profile.
+    // (Looking up by display_id or by email substring is unreliable — for
+    // example, "registrar@college0.demo" doesn't match the bare "registrar"
+    // string in resolveRole, so without this we'd default to "student".)
+    const { data: prof } = await window.SB
+      .from("profiles")
+      .select("role, must_change_password")
+      .eq("id", data.user.id)
+      .single();
+    const profileRole = prof?.role || resolveRole(idTrim);
     setRole(profileRole);
-    // Was this a first-login (server-side flag)?
-    const { data: prof } = await window.SB.from("profiles").select("must_change_password").eq("id", data.user.id).single();
     if (prof?.must_change_password) { setMode("firstTime"); return; }
     if (profileRole === "registrar") setPage("registrar-dash");
     else if (profileRole === "instructor") setPage("instructor-roster");

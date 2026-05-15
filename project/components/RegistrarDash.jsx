@@ -10,7 +10,10 @@ const RegistrarDash = ({ setPage }) => {
   const apps = store.applications;
   const [justification, setJustification] = React.useState({});
   const [showJust, setShowJust] = React.useState(null);
-  const [tabooWords, setTabooWords] = React.useState(["damn", "hell", "stupid", "idiot", "hate"]);
+  // Read from the live store (hydrated from taboo_words on app boot) and write
+  // back through Backend.setTaboo so adds/removes persist across sessions.
+  const tabooWords = store.tabooWords || [];
+  const persistTaboo = (next) => store.setTaboo(next).then(() => store.refreshFromBackend());
   const [newWord, setNewWord] = React.useState("");
   const [decideError, setDecideError] = React.useState({});
   const [decideBusy, setDecideBusy] = React.useState({});
@@ -399,13 +402,13 @@ const RegistrarDash = ({ setPage }) => {
               {tabooWords.map(w=>(
                 <span key={w} style={{display:"inline-flex",alignItems:"center",gap:6,padding:"4px 10px",background:"var(--bg-2)",border:"1px solid var(--line)",borderRadius:"var(--radius-sm)",fontFamily:"var(--font-mono)",fontSize:12}}>
                   {w}
-                  <span style={{cursor:"pointer",color:"var(--ink-3)",marginLeft:2}} onClick={()=>setTabooWords(tabooWords.filter(x=>x!==w))}>✕</span>
+                  <span style={{cursor:"pointer",color:"var(--ink-3)",marginLeft:2}} onClick={()=>persistTaboo(tabooWords.filter(x=>x!==w))}>✕</span>
                 </span>
               ))}
             </div>
             <div className="row" style={{gap:8}}>
-              <input className="input" style={{maxWidth:220}} placeholder="Add word…" value={newWord} onChange={e=>setNewWord(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&newWord.trim()){setTabooWords([...tabooWords,newWord.trim().toLowerCase()]);setNewWord("");}}}/>
-              <button className="btn primary" disabled={!newWord.trim()} onClick={()=>{if(newWord.trim()){setTabooWords([...tabooWords,newWord.trim().toLowerCase()]);setNewWord("")}}}>Add</button>
+              <input className="input" style={{maxWidth:220}} placeholder="Add word…" value={newWord} onChange={e=>setNewWord(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&newWord.trim()){persistTaboo([...tabooWords,newWord.trim().toLowerCase()]);setNewWord("");}}}/>
+              <button className="btn primary" disabled={!newWord.trim()} onClick={()=>{if(newWord.trim()){persistTaboo([...tabooWords,newWord.trim().toLowerCase()]);setNewWord("")}}}>Add</button>
             </div>
           </div>
         </div>
@@ -565,10 +568,35 @@ const PhasesTab = ({ D, phase, setPhase, store, phaseNames }) => {
     setPreview(null);
   };
 
+  const jumpTo = async (targetPhase) => {
+    await store.setPhase(targetPhase);
+    await store.refreshFromBackend();
+  };
+
   return (
     <div style={{maxWidth:880}}>
       <div className="section-title"><h2>Semester phase control</h2><span className="count">Spring 2026</span></div>
-      <div className="warn-banner mb-3"><span className="bar"/><span>Currently in <b>Phase {phase} — {phaseNames[phase-1]}</b>. Advancing fires policy actions and is irreversible.</span></div>
+      <div className="warn-banner mb-3"><span className="bar"/><span>Currently in <b>Phase {phase} — {phaseNames[phase-1]}</b>. The "Apply &amp; advance" button below fires policy actions (course cancellations, instructor warnings, etc.). The "Jump to" buttons skip the policy logic and just set the phase — useful for backtracking during testing.</span></div>
+
+      <div className="card mb-3" style={{padding:14}}>
+        <div className="footnote mb-2">JUMP TO ANY PHASE · NO POLICY EFFECTS</div>
+        <div className="row" style={{gap:6, flexWrap:"wrap"}}>
+          {phaseNames.map((name, i) => {
+            const target = i + 1;
+            const active = target === phase;
+            return (
+              <button
+                key={target}
+                className={"btn sm " + (active ? "primary" : "ghost")}
+                onClick={() => !active && jumpTo(target)}
+                disabled={active}
+              >
+                {target}. {name}
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
       <div className="card" style={{overflow:"hidden",marginBottom:24}}>
         {phaseNames.map((name,i) => {
@@ -808,13 +836,13 @@ const ClassSetupTab = ({ D, phase }) => {
 
   const update = async (id, patch) => {
     setErr("");
-    const { error } = await window.SB.from('courses').update(patch).eq('id', id);
+    const { error } = await (window.freshSB ? window.freshSB() : window.SB).from('courses').update(patch).eq('id', id);
     if (error) setErr(error.message);
     else await store.refreshFromBackend();
   };
   const remove = async (id) => {
     setErr("");
-    const { error } = await window.SB.from('courses').delete().eq('id', id);
+    const { error } = await (window.freshSB ? window.freshSB() : window.SB).from('courses').delete().eq('id', id);
     if (error) setErr(error.message);
     else await store.refreshFromBackend();
   };
@@ -825,7 +853,7 @@ const ClassSetupTab = ({ D, phase }) => {
     const inst = instructors.find(i => i.displayId === draftInst);
     if (!inst) { setErr("Instructor not found."); return; }
     const code = draftCode.trim().toUpperCase();
-    const { error } = await window.SB.from('courses').insert({
+    const { error } = await (window.freshSB ? window.freshSB() : window.SB).from('courses').insert({
       code,
       title: draftTitle.trim() || code,
       instructor_id: inst.id,

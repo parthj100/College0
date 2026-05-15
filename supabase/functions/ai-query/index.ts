@@ -110,6 +110,18 @@ async function answerFromVector(supabase: any, role: string, q: string): Promise
   return { body: best.body, source: `${best.source} (vector)`, kind: 'local' };
 }
 
+// English stopwords + very-short tokens that would otherwise dominate the
+// score and cause the KB to false-positive on questions that have nothing to
+// do with College0 (e.g. "What is the capital of France?" used to match the
+// Handbook because "is" / "the" appear there).
+const STOPWORDS = new Set([
+  'a','an','and','are','as','at','be','but','by','can','could','do','does',
+  'for','from','had','has','have','how','i','if','in','is','it','its','me',
+  'my','no','not','of','on','or','our','should','so','than','that','the',
+  'their','them','then','there','they','this','to','was','we','were','what',
+  'when','where','which','who','why','will','with','would','you','your',
+]);
+
 async function answerFromKB(supabase: any, role: string, q: string): Promise<Answer | null> {
   const { data: docs } = await supabase
     .from('kb_docs')
@@ -117,17 +129,29 @@ async function answerFromKB(supabase: any, role: string, q: string): Promise<Ans
     .contains('role_scope', `{${role}}`);
   if (!docs || docs.length === 0) return null;
 
-  const tokens = q.toLowerCase().match(/[a-z]+/g) ?? [];
+  const rawTokens = q.toLowerCase().match(/[a-z]+/g) ?? [];
+  // Keep only meaningful tokens — drop stopwords and tokens shorter than 4
+  // chars. De-duplicate so "graduation graduation" doesn't double-count.
+  const tokens = [...new Set(rawTokens.filter(t => t.length >= 4 && !STOPWORDS.has(t)))];
   if (tokens.length === 0) return null;
 
   let best: { doc: any; score: number } | null = null;
   for (const doc of docs) {
     const hay = (doc.title + ' ' + doc.body).toLowerCase();
     let score = 0;
-    for (const t of tokens) if (hay.includes(t)) score += 1;
+    for (const t of tokens) {
+      // Whole-word match — substring matches caused things like "the" matching
+      // "their" earlier. Escape regex meta-chars on the token just in case.
+      const safe = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      if (new RegExp('\\b' + safe + '\\b').test(hay)) score += 1;
+    }
     if (score > 0 && (!best || score > best.score)) best = { doc, score };
   }
-  if (!best || best.score < 2) return null;
+  // Need at least 2 *meaningful* token hits OR ≥50% of the meaningful tokens
+  // — whichever is harder. Stops single-keyword false positives on short
+  // questions while still letting genuine 2–3 word KB queries through.
+  const minHits = Math.max(2, Math.ceil(tokens.length * 0.5));
+  if (!best || best.score < minHits) return null;
   return { body: best.doc.body, source: best.doc.source, kind: 'local' };
 }
 
@@ -183,14 +207,20 @@ async function answerFromOpenAI(question: string, apiKey: string): Promise<Answe
   }
 }
 
-// Ollama (https://ollama.com). Configure with OLLAMA_URL (public host that Supabase
-// can reach — localhost won't work from edge functions; use a tunnel like ngrok or
-// a cloud-hosted Ollama). OLLAMA_MODEL defaults to llama3.2.
-async function answerFromOllama(question: string, url: string, model: string): Promise<Answer | null> {
+// Ollama. Two supported configurations:
+//   1. Self-hosted: OLLAMA_URL points at a public host running Ollama (localhost
+//      won't work from edge functions; use a tunnel or a cloud VM).
+//   2. Ollama Cloud / Turbo: set OLLAMA_URL=https://ollama.com and provide
+//      OLLAMA_API_KEY. The same /api/chat endpoint, just authenticated.
+// OLLAMA_MODEL picks the model name; defaults to gpt-oss:20b for cloud or
+// llama3.2 for self-hosted.
+async function answerFromOllama(question: string, url: string, model: string, apiKey?: string): Promise<Answer | null> {
   try {
+    const headers: Record<string, string> = { 'content-type': 'application/json' };
+    if (apiKey) headers.authorization = `Bearer ${apiKey}`;
     const res = await fetch(`${url.replace(/\/$/, '')}/api/chat`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers,
       body: JSON.stringify({
         model,
         stream: false,
@@ -213,8 +243,11 @@ async function answerFromOllama(question: string, url: string, model: string): P
 async function answerFromLLM(question: string): Promise<Answer> {
   const anth = Deno.env.get('ANTHROPIC_API_KEY');
   const oai = Deno.env.get('OPENAI_API_KEY');
-  const ollamaUrl = Deno.env.get('OLLAMA_URL');
-  const ollamaModel = Deno.env.get('OLLAMA_MODEL') || 'llama3.2';
+  const ollamaUrl = Deno.env.get('OLLAMA_URL') || (Deno.env.get('OLLAMA_API_KEY') ? 'https://ollama.com' : '');
+  const ollamaKey = Deno.env.get('OLLAMA_API_KEY');
+  // Default model: gpt-oss:20b for Ollama Cloud (the lightest cloud option)
+  // when a key is set; llama3.2 for self-hosted.
+  const ollamaModel = Deno.env.get('OLLAMA_MODEL') || (ollamaKey ? 'gpt-oss:20b' : 'llama3.2');
 
   // Precedence: Anthropic → OpenAI → Ollama. First configured backend wins; if it
   // errors, the next one is tried.
@@ -227,7 +260,7 @@ async function answerFromLLM(question: string): Promise<Answer> {
     if (a && a.source !== 'External LLM · error') return a;
   }
   if (ollamaUrl) {
-    const a = await answerFromOllama(question, ollamaUrl, ollamaModel);
+    const a = await answerFromOllama(question, ollamaUrl, ollamaModel, ollamaKey);
     if (a) return a;
   }
   return {

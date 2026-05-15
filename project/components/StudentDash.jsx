@@ -32,7 +32,8 @@ const StudentDash = ({ setPage }) => {
   useEffect(() => {
     if (!store.me || !window.SB) { setMyClasses([]); return; }
     (async () => {
-      const { data } = await window.SB.from("enrollments")
+      const sb = window.freshSB ? window.freshSB() : window.SB;
+      const { data } = await sb.from("enrollments")
         .select("status,grade,course:courses(code,title,instructor:instructors(profile:profiles(full_name)),time_label,room,semester)")
         .eq("student_id", store.me.id)
         .eq("status", "enrolled");
@@ -58,7 +59,11 @@ const StudentDash = ({ setPage }) => {
         <h1 className="page-title" style={{ margin: 0 }}>Good afternoon, <span className="slash">{(me.name || "").split(" ")[0] || "there"}.</span></h1>
         <div className="row" style={{ gap: 8, alignItems: "center" }}>
           <button className="btn" onClick={() => setComplaintOpen(true)}>File a complaint</button>
-          <button className="btn primary" disabled={me.completedClasses < 8 || myWarnings.length >= 3} onClick={() => setGradOpen(true)} title={me.completedClasses < 8 ? `Available at ${me.graduationTarget} completed classes` : ""}>
+          {/* The button is enabled unconditionally — students can file a
+              "reckless" application even before they're eligible, and the
+              system will auto-warn + auto-reject so the consequence is
+              immediate. Suspended students (3+ active warnings) still can't. */}
+          <button className="btn primary" disabled={myWarnings.length >= 3} onClick={() => setGradOpen(true)} title={myWarnings.length >= 3 ? "Suspended — clear warnings first" : ""}>
             Apply for graduation {me.completedClasses < 8 && <span className="mono" style={{ fontSize: 11, opacity: 0.7 }}> · {me.completedClasses}/{me.graduationTarget}</span>}
           </button>
         </div>
@@ -142,7 +147,11 @@ const StudentDash = ({ setPage }) => {
           </div>
         )}
         {myClasses.map(c => (
-          <div key={c.code} className="class-card" onClick={() => { window.__openClassCode = c.code; setPage("my-class"); }}>
+          <div key={c.code} className="class-card" onClick={() => {
+            window.__openClassCode = c.code;
+            try { localStorage.setItem("c0-class-detail-code", c.code); } catch {}
+            setPage("my-class");
+          }}>
             <div className="row sb">
               <div className="code">{c.code}</div>
               {c.myRating ? <Chip tone="accent">{c.myRating}★ reviewed</Chip> : <Chip>Not rated</Chip>}

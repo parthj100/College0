@@ -3,11 +3,51 @@
 const ClassDetail = ({ setPage, role = "student" }) => {
   const D = window.COLLEGE_DATA;
   const store = useStore();
-  const c = D.classDetail;
+  // Pick the class to display:
+  //   1. window.__openClassCode set by the dashboard click handler (preferred)
+  //   2. localStorage `c0-class-detail-code` (survives page reloads)
+  //   3. fallback to the seeded D.classDetail (PHIL-612) for the visitor demo
+  // When (1) or (2) refers to a live course not in the seed, build a thin
+  // object on the fly from store.coursesByCode so reviews/enrollment still work.
+  const requestedCode = window.__openClassCode
+    || (typeof localStorage !== 'undefined' && localStorage.getItem('c0-class-detail-code'));
+  let c = D.classDetail;
+  if (requestedCode && requestedCode !== c.code) {
+    if (D.classCatalog?.[requestedCode]) {
+      c = D.classCatalog[requestedCode];
+    } else {
+      const live = store.coursesByCode?.[requestedCode];
+      if (live) {
+        // Build a c shaped like D.classDetail so all the existing JSX bindings
+        // keep working without per-field guards.
+        c = {
+          code: live.code,
+          title: live.title,
+          instructor: live.instructorName || "TBD",
+          instructorBio: "",
+          meta: {
+            credits: 3,
+            semester: live.semester || "Spring 2026",
+            time: live.time || "TBD",
+            room: live.room || "",
+            avgRating: live.avgRating || 0,
+            reviews: 0,
+            enrolled: 0,
+            cap: live.cap || 12,
+          },
+          rating: live.avgRating || 0,
+          ratingHistogram: [0,0,0,0,0],
+          description: "Live course — no syllabus on file.",
+          reviews: [],
+          syllabus: [],
+        };
+      }
+    }
+  }
   const [tab, setTab] = useState("overview");
   const [newStars, setNewStars] = useState(0);
   const [newText, setNewText] = useState("");
-  const [reviews, setReviews] = useState(c.reviews.map(r => ({ ...r, authorId: r.authorId || ("s-000" + (10 + r.id)) })));
+  const [reviews, setReviews] = useState((c.reviews || []).map(r => ({ ...r, authorId: r.authorId || ("s-000" + (10 + r.id)) })));
   const [reviewPosted, setReviewPosted] = useState(false);
 
   // Pull live reviews from Supabase for this course (replaces the seeded list once available).
@@ -42,12 +82,20 @@ const ClassDetail = ({ setPage, role = "student" }) => {
     })();
     return () => { cancelled = true; };
   }, [c.code, store.coursesByCode]);
-  // Spec §5: only currently enrolled students may review; reviews close once a grade is posted; only valid during phase 3+
+  // Spec §5: only currently enrolled students may review; reviews close once a
+  // grade is posted. The store owns the phase gate (currently phase 2-4 in
+  // demo mode), so we delegate to it instead of duplicating the rule here.
   const me = D.me;
-  const isEnrolled = role === "student" && D.myClasses.some(mc => mc.code === c.code);
+  // Treat the student as enrolled if their live enrollment set (hydrated from
+  // Supabase by the store) contains this course code. Fall back to the static
+  // seed only when the set is empty (e.g. before hydration finishes).
+  const liveSet = store.myEnrollmentCodes;
+  const seedEnrolled = D.myClasses.some(mc => mc.code === c.code);
+  const isEnrolled = role === "student" && (
+    liveSet && liveSet.size > 0 ? liveSet.has(c.code) : seedEnrolled
+  );
   const reviewsLocked = store.isClassGraded(c.code);
-  const phaseAllowsReviews = store.phase >= 3;
-  const canWriteReview = role === "student" && isEnrolled && !reviewsLocked && phaseAllowsReviews;
+  const canWriteReview = role === "student" && isEnrolled && !reviewsLocked && store.canReview(c.code);
   const liveTabooHits = store.scanReview(newText);
 
   const hist = c.ratingHistogram;
@@ -163,8 +211,8 @@ const ClassDetail = ({ setPage, role = "student" }) => {
               {!reviewsLocked && role === "student" && !isEnrolled && (
                 <div className="warn-banner mt-2" style={{ padding: "8px 12px" }}><span className="bar"/><span style={{ fontSize: 12 }}>Only students <b>currently enrolled</b> in this class may post a review.</span></div>
               )}
-              {!reviewsLocked && role === "student" && isEnrolled && !phaseAllowsReviews && (
-                <div className="warn-banner mt-2" style={{ padding: "8px 12px" }}><span className="bar"/><span style={{ fontSize: 12 }}>Reviews open during the class-running period (phase 3).</span></div>
+              {!reviewsLocked && role === "student" && isEnrolled && !store.canReview(c.code) && (
+                <div className="warn-banner mt-2" style={{ padding: "8px 12px" }}><span className="bar"/><span style={{ fontSize: 12 }}>Reviews aren't open in the current phase.</span></div>
               )}
               {role !== "student" && (
                 <div className="warn-banner mt-2 info" style={{ padding: "8px 12px" }}><span className="bar"/><span style={{ fontSize: 12 }}>Only students may post reviews. {role === "registrar" && "As registrar you can see authors via the chip on each review."}</span></div>

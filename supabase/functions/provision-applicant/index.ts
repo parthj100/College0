@@ -42,22 +42,40 @@ Deno.serve(async (req) => {
   if (aErr || !app) return json({ error: 'application not found' }, 404);
   if (app.status !== 'accept') return json({ error: 'application is not accepted yet' }, 409);
 
-  // Adopt existing auth user when present (so re-provisioning doesn't fail)
-  const { data: list } = await supabase.auth.admin.listUsers({ perPage: 1000 });
-  const existing = list?.users?.find(x => x.email?.toLowerCase() === app.email.toLowerCase());
-
-  let newUserId: string;
-  let display_id: string;
+  // Pick the display_id first so we can use it to construct the canonical
+  // auth email (`<display_id>@college0.demo`). This matches the existing
+  // seeded users and lets the SB_EMAIL_FOR helper resolve a typed display_id
+  // to a real auth email at sign-in time. The applicant's original email is
+  // preserved in user_metadata for reference.
   const password = DEMO_TEMP_PASSWORD;
+
+  // Adopt by either application email OR canonical email if either already
+  // exists in auth (covers re-runs / leftover test users).
+  const { data: list } = await supabase.auth.admin.listUsers({ perPage: 1000 });
+  const lowerAppEmail = app.email.toLowerCase();
+
+  let display_id: string;
+  let existing = list?.users?.find(x => x.email?.toLowerCase() === lowerAppEmail);
+  if (existing) {
+    display_id = (existing.user_metadata?.display_id as string) || await pickDisplayId(supabase, app);
+  } else {
+    display_id = await pickDisplayId(supabase, app);
+    const canonicalEmail = display_id + '@college0.demo';
+    existing = list?.users?.find(x => x.email?.toLowerCase() === canonicalEmail);
+  }
+
+  const canonicalEmail = display_id + '@college0.demo';
+  let newUserId: string;
 
   if (existing) {
     newUserId = existing.id;
-    display_id = (existing.user_metadata?.display_id as string) || await pickDisplayId(supabase, app);
     const { error: upErr } = await supabase.auth.admin.updateUserById(newUserId, {
+      email: canonicalEmail,
       password,
       user_metadata: {
         ...(existing.user_metadata || {}),
         display_id,
+        applicant_email: app.email,
         full_name: app.name,
         role: app.type,
         must_change_password: false,
@@ -72,12 +90,17 @@ Deno.serve(async (req) => {
       must_change_password: false,
     });
   } else {
-    display_id = await pickDisplayId(supabase, app);
     const { data: created, error: createErr } = await supabase.auth.admin.createUser({
-      email: app.email,
+      email: canonicalEmail,
       password,
       email_confirm: true,
-      user_metadata: { display_id, full_name: app.name, role: app.type, must_change_password: false },
+      user_metadata: {
+        display_id,
+        applicant_email: app.email,
+        full_name: app.name,
+        role: app.type,
+        must_change_password: false,
+      },
     });
     if (createErr) return json({ error: createErr.message }, 500);
     newUserId = created.user!.id;
@@ -95,7 +118,8 @@ Deno.serve(async (req) => {
 
   return json({
     application_id: app.id, display_id, user_id: newUserId,
-    email: app.email, temp_password: password, must_change_password: false,
+    email: canonicalEmail, applicant_email: app.email,
+    temp_password: password, must_change_password: false,
     reused_existing: !!existing,
   });
 });

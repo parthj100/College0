@@ -181,10 +181,15 @@ const App = () => {
           <div className="nav-section">
             <div className="nav-label">Session</div>
             {role !== "visitor" ? (
-              <div className="nav-item" onClick={async () => {
-                if (window.Backend) await window.Backend.signOut();
-                setRole("visitor");
-                setPage("login");
+              <div className="nav-item" onClick={() => {
+                // Fire-and-forget the auth signOut — awaiting it can hang the
+                // realtime/auth channel. Then nuke local state and hard-reload
+                // so the Supabase client comes back up fresh.
+                try { window.Backend?.signOut?.(); } catch {}
+                try { localStorage.removeItem("c0-supabase-auth"); } catch {}
+                localStorage.setItem("c0-role", "visitor");
+                localStorage.setItem("c0-page", "login");
+                window.location.href = window.location.pathname;
               }}>
                 <span className="mono" style={{ width: 16 }}>↪</span>
                 <span>Sign out</span>

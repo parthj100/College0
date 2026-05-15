@@ -107,10 +107,28 @@ const GradAppModal = ({ open, onClose, student }) => {
 
   const [confirmed, setConfirmed] = useState(false);
   const [posted, setPosted] = useState(null);
+  const [submitErr, setSubmitErr] = useState("");
 
-  const submit = () => {
-    const app = window.CollegeStore.fileGradApp(student.id, student.name, student.major, completed);
-    setPosted(app);
+  const submit = async () => {
+    setSubmitErr("");
+    try {
+      // fileGradApp is async — await the row before using `.missing` etc.
+      const row = await window.CollegeStore.fileGradApp(
+        student.id, student.name, student.major, completed,
+      );
+      // Server may auto-flip to 'reject-reckless' when missing_codes is non-empty.
+      // Normalize the field names so the success view's posted.missing keeps working.
+      setPosted({
+        ...row,
+        missing: row?.missing_codes || missing,
+        autoRejected: row?.status === 'reject-reckless',
+      });
+      // Realtime should pick up the new warning, but pull explicitly so the
+      // dashboard updates the moment we close the modal.
+      window.CollegeStore.refreshFromBackend?.();
+    } catch (e) {
+      setSubmitErr(e?.message || String(e));
+    }
   };
 
   const close = () => { setConfirmed(false); setPosted(null); onClose(); };
@@ -119,16 +137,20 @@ const GradAppModal = ({ open, onClose, student }) => {
     <Modal open={open} onClose={close} title="Apply for graduation" eyebrow={`Bachelor's · ${student.major}`} width={620}>
       {posted ? (
         <div>
-          <div className="mono" style={{ fontSize: 28, marginBottom: 8, color: posted.missing.length === 0 ? "var(--ok)" : "var(--warn)" }}>
-            {posted.missing.length === 0 ? "✓" : "⚠"}
+          <div className="mono" style={{ fontSize: 28, marginBottom: 8, color: (posted.missing || []).length === 0 ? "var(--ok)" : "var(--bad)" }}>
+            {(posted.missing || []).length === 0 ? "✓" : "⚠"}
           </div>
           <div className="display" style={{ fontSize: 22, marginBottom: 6 }}>
-            {posted.missing.length === 0 ? "Submitted to the registrar." : "Filed — but flagged."}
+            {(posted.missing || []).length === 0
+              ? "Submitted to the registrar."
+              : posted.autoRejected
+                ? "Auto-rejected — reckless application."
+                : "Filed — but flagged."}
           </div>
           <p style={{ fontSize: 13.5, lineHeight: 1.6, color: "var(--ink-2)" }}>
-            {posted.missing.length === 0
+            {(posted.missing || []).length === 0
               ? "All required courses appear in your record. The registrar will verify and confer your Bachelor's degree shortly."
-              : <>You're missing required courses ({posted.missing.join(", ")}). The registrar may issue a <b>warning for a reckless application</b>.</>}
+              : <>You're missing required courses (<span className="mono" style={{fontSize:12}}>{(posted.missing || []).join(", ")}</span>). A <b>warning has been added to your record</b> for filing a reckless application.</>}
           </p>
           <div className="row mt-2"><button className="btn" onClick={close}>Close</button></div>
         </div>
@@ -168,11 +190,18 @@ const GradAppModal = ({ open, onClose, student }) => {
             </div>
           )}
           <div className="row" style={{ gap: 8 }}>
-            <button className="btn primary" disabled={!eligible} onClick={submit}>
+            {/* No eligibility gate — the server will auto-issue the reckless
+                warning if the application is incomplete. Letting the student
+                submit and immediately see the warning is more honest UX than
+                silently disabling the button. */}
+            <button className="btn primary" onClick={submit}>
               {willPass ? "Submit application →" : "Submit anyway →"}
             </button>
             <button className="btn ghost" onClick={close}>Cancel</button>
           </div>
+          {submitErr && (
+            <div className="warn-banner bad mt-2"><span className="bar"/><span style={{fontSize:12.5}}>{submitErr}</span></div>
+          )}
         </div>
       )}
     </Modal>

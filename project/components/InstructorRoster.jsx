@@ -2,9 +2,66 @@
 
 const InstructorRoster = ({ setPage }) => {
   const D = window.COLLEGE_DATA;
-  const classes = D.instructorClasses || [D.instructorClass];
+  const store = useStore();
+  // Live classes: pull every active course this instructor teaches in the
+  // current semester from the DB and build rosters from enrollments. Merge
+  // with the demo seed (D.instructorClasses) so any new course the registrar
+  // adds during a session shows up alongside the seeded demo classes.
+  const [liveClasses, setLiveClasses] = useState([]);
+  useEffect(() => {
+    if (!window.SB || !store.me) { setLiveClasses([]); return; }
+    (async () => {
+      const sb = window.freshSB ? window.freshSB() : window.SB;
+      // courses.instructor_id is just profiles.id (the user_id), no extra lookup
+      const sem = store.currentSemester || "Spring 2026";
+      const { data: myCourses } = await sb.from("courses")
+        .select("id, code, title, semester, cap")
+        .eq("instructor_id", store.me.id)
+        .eq("semester", sem)
+        .eq("status", "active");
+      if (!myCourses?.length) { setLiveClasses([]); return; }
+      const courseIds = myCourses.map(c => c.id);
+      const { data: enrolls } = await sb.from("enrollments")
+        .select("course_id, status, student:students(profile:profiles(display_id, full_name))")
+        .in("course_id", courseIds)
+        .eq("status", "enrolled")
+        .eq("term", sem);
+      const byCourse = {};
+      (enrolls || []).forEach(e => {
+        const did = e.student?.profile?.display_id;
+        const fname = e.student?.profile?.full_name || did;
+        if (!did) return;
+        (byCourse[e.course_id] ||= []).push({
+          id: did, name: fname,
+          current: 3.0, submissions: "0 / 0", midterm: 0,
+        });
+      });
+      setLiveClasses(myCourses.map(c => ({
+        code: c.code, title: c.title, semester: c.semester,
+        cap: c.cap || 12,
+        avgRating: 0,
+        roster: byCourse[c.id] || [],
+      })));
+    })();
+  }, [store.me?.id, store.currentSemester, store.coursesByCode]);
+
+  // Merge: prefer the live entry when codes overlap (live has the up-to-date
+  // roster); otherwise fall back to the seeded demo class with its hand-built
+  // metrics so the demo views still show GPA / submissions / midterm.
+  const seed = (D.instructorClasses || [D.instructorClass]).filter(Boolean);
+  const liveCodes = new Set(liveClasses.map(c => c.code));
+  // Normalize seed shape to the same fields live classes expose (so c.* never
+  // throws). Seed already has these in the demo, but be defensive.
+  const normalize = (cl) => ({
+    avgRating: 0, semester: 'Spring 2026', cap: 12, roster: [], ...cl,
+  });
+  const classes = [
+    ...liveClasses.map(normalize),
+    ...seed.filter(s => !liveCodes.has(s.code)).map(normalize),
+  ];
   const [activeIdx, setActiveIdx] = useState(0);
-  const c = classes[activeIdx];
+  // Guard rendering until at least one class is available
+  const c = classes[activeIdx] || classes[0] || null;
   const [gradesByClass, setGradesByClass] = useState({});
   const [postedByClass, setPostedByClass] = useState({});
   const [complaintOpen, setComplaintOpen] = useState(false);
@@ -13,7 +70,17 @@ const InstructorRoster = ({ setPage }) => {
   const [deregFiled, setDeregFiled] = useState({});
   const [waitlistFeedback, setWaitlistFeedback] = useState("");
   const [showStanding, setShowStanding] = useState(false);
-  const store = useStore();
+
+  // If we don't have any class info yet (still loading) render an empty state
+  // instead of crashing on c.code below.
+  if (!c) {
+    return (
+      <div className="page">
+        <Eyebrow>Instructor</Eyebrow>
+        <p className="muted">Loading classes…</p>
+      </div>
+    );
+  }
 
   const grades = gradesByClass[c.code] || {};
   const posted = !!postedByClass[c.code];
@@ -32,13 +99,22 @@ const InstructorRoster = ({ setPage }) => {
   const avg = assigned ? Object.values(grades).reduce((a,g) => a + gpaMap[g], 0) / assigned : null;
 
   const doPostGrades = () => {
-    setPostedByClass({ ...postedByClass, [c.code]: true });
-    // Records each student's grade and triggers GPA/standing recompute, honor roll, auto-termination, class-GPA outlier check
-    store.recordGrades(c.code, "i-Okonkwo", "C. Okonkwo", grades);
+    // Spec §6: instructors who didn't grade all students will be warned.
+    // Surface this BEFORE posting so the registrar / instructor sees the consequence.
     if (assigned < c.roster.length) {
-      // Spec §6: didn't grade all students → warning
-      store.issueWarning("i-Okonkwo", "C. Okonkwo", "instructor", `Did not grade all students in ${c.code} (${assigned}/${c.roster.length})`);
+      const missing = c.roster.filter(s => !grades[s.id]).map(s => s.name).slice(0, 8).join(", ");
+      const more = c.roster.length - assigned > 8 ? ` (+${c.roster.length - assigned - 8} more)` : "";
+      const ok = window.confirm(
+        `You haven't graded ${c.roster.length - assigned} of ${c.roster.length} students:\n\n${missing}${more}\n\n` +
+        `Posting now will issue you a warning per spec §6 ("instructors who didn't assign grades for all students will be warned"). ` +
+        `Continue?`
+      );
+      if (!ok) return;
     }
+    setPostedByClass({ ...postedByClass, [c.code]: true });
+    // Records each student's grade and triggers GPA/standing recompute, honor roll, auto-termination, class-GPA outlier check.
+    // The RPC also issues the missing-grades warning server-side, so we don't double-issue here.
+    store.recordGrades(c.code, "i-Okonkwo", "C. Okonkwo", grades);
   };
 
   const myWarnings = store.warnings.filter(w => w.target === "i-Okonkwo" && w.active);

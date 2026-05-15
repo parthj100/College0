@@ -20,11 +20,48 @@ const Registration = ({ setPage }) => {
   const suspended = myActiveWarnings >= 3;
   const canRegister = store.canRegister();
 
+  // Live catalog: load active courses for the current semester. Re-fetches
+  // whenever the hydrated coursesByCode map changes (which the realtime
+  // channel triggers on courses/enrollments inserts/updates), so registrar
+  // additions appear without refresh.
+  const [catalog, setCatalog] = useState([]);
+  useEffect(() => {
+    if (!window.SB) return;
+    (async () => {
+      // freshSB() avoids the long-lived client's deadlock on subsequent calls.
+      const sb = window.freshSB ? window.freshSB() : window.SB;
+      const sem = store.currentSemester || "Spring 2026";
+      const [courses, enrolls] = await Promise.all([
+        sb.from("courses")
+          .select("id, code, title, department, time_label, day_mask, start_hour, end_hour, cap, instructor:instructors(profile:profiles(full_name))")
+          .eq("status", "active")
+          .eq("semester", sem),
+        sb.from("enrollments")
+          .select("course_id")
+          .eq("status", "enrolled")
+          .eq("term", sem),
+      ]);
+      const countByCourse = {};
+      (enrolls.data || []).forEach(e => { countByCourse[e.course_id] = (countByCourse[e.course_id] || 0) + 1; });
+      setCatalog((courses.data || []).map(c => ({
+        id: c.id, code: c.code, title: c.title,
+        instructor: c.instructor?.profile?.full_name || "TBD",
+        dept: c.department || "—",
+        time: c.time_label || "",
+        day: Array.isArray(c.day_mask) ? c.day_mask : [],
+        start: c.start_hour ? parseFloat(c.start_hour) : 9,
+        end: c.end_hour ? parseFloat(c.end_hour) : 10,
+        cap: c.cap, seats: c.cap - (countByCourse[c.id] || 0),
+      })));
+    })();
+  }, [store.coursesByCode, store.currentSemester]);
+
   // Load live enrollments for the signed-in student.
   useEffect(() => {
     if (!store.me || !window.SB) return;
     (async () => {
-      const { data } = await window.SB
+      const sb = window.freshSB ? window.freshSB() : window.SB;
+      const { data } = await sb
         .from("enrollments")
         .select("course:courses(code, semester)")
         .eq("student_id", store.me.id)
@@ -33,19 +70,18 @@ const Registration = ({ setPage }) => {
         .map(e => e.course?.code)
         .filter(Boolean);
       setEnrolledCodes(live);
-      // Pre-populate cart with what's already enrolled so the user sees their state.
       setCart(live);
     })();
-  }, [store.me?.id, store.hydrated]);
+  }, [store.me?.id, store.hydrated, store.coursesByCode]);
 
-  const depts = ["All", ...new Set(D.catalog.map(c => c.dept))];
+  const depts = ["All", ...new Set(catalog.map(c => c.dept))];
   const inCart = (code) => cart.includes(code);
   const passed = (code) => me.passedCourses?.includes(code);
   const failedBefore = (code) => me.failedCourses?.includes(code);
   const hasTimeConflict = (course) => {
     return cart.some(code => {
-      const c = D.catalog.find(x => x.code === code);
-      if (!c) return false;
+      const c = catalog.find(x => x.code === code);
+      if (!c || !c.day || !course.day) return false;
       const daysOverlap = c.day.some(d => course.day.includes(d));
       return daysOverlap && !(course.end <= c.start || course.start >= c.end);
     });
@@ -54,7 +90,7 @@ const Registration = ({ setPage }) => {
     setCart(cart.includes(code) ? cart.filter(x => x !== code) : [...cart, code]);
   };
 
-  const filtered = D.catalog.filter(c =>
+  const filtered = catalog.filter(c =>
     (dept === "All" || c.dept === dept) &&
     (q === "" || (c.code + " " + c.title + " " + c.instructor).toLowerCase().includes(q.toLowerCase()))
   );
@@ -171,7 +207,7 @@ const Registration = ({ setPage }) => {
               <React.Fragment key={h}>
                 <div className="sh">{h}:00</div>
                 {[1,2,3,4,5].map(dayIdx => {
-                  const course = cart.map(code => D.catalog.find(c => c.code === code)).find(c =>
+                  const course = cart.map(code => catalog.find(c => c.code === code)).find(c =>
                     c && c.day.includes(dayIdx) && c.start <= h && c.end > h
                   );
                   const isStart = course && course.start === h;
@@ -200,7 +236,7 @@ const Registration = ({ setPage }) => {
             </div>
             {cart.length === 0 && <div className="muted" style={{ fontSize: 13 }}>Nothing added yet.</div>}
             {cart.map(code => {
-              const c = D.catalog.find(x => x.code === code);
+              const c = catalog.find(x => x.code === code);
               return (
                 <div key={code} className="item">
                   <div>

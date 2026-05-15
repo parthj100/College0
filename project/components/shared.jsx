@@ -55,7 +55,10 @@ const Placeholder = ({ label, h = 120 }) => (
 // Lives on window so all components share state through CollegeStore.
 window.CollegeStore = window.CollegeStore || {
   // Current semester phase: 1=Set-up, 2=Registration, 3=Class running, 4=Grading
-  phase: 3,
+  // Default to 2 (Registration) so the demo opens in a state where every role
+  // has something to do: students can enroll, instructors see their pre-grading
+  // roster, registrar can review applications/classes/quotas.
+  phase: 2,
   warnings: [...(window.COLLEGE_DATA.warnings || [])],
   honors:   [...(window.COLLEGE_DATA.honorRoll || [])],
   // Pending visitor applications (added by ApplyPage, read by RegistrarDash)
@@ -227,8 +230,15 @@ cs._refreshFromBackendInner = async () => {
     });
     // Locks: classes graded if any enrollment has a grade
     cs.gradedClasses = new Set();
+    // Codes the signed-in student is currently enrolled in — used by review +
+    // class-detail screens so they don't depend on the static D.myClasses seed.
+    cs.myEnrollmentCodes = new Set();
+    const meId = cs.me?.id;
     (d.enrollments || []).forEach(e => {
       if (e.grade) cs.gradedClasses.add(e.course?.code);
+      if (meId && e.student_id === meId && e.status === 'enrolled' && e.course?.code) {
+        cs.myEnrollmentCodes.add(e.course.code);
+      }
     });
     cs.hydrated = true;
     cs.emit();
@@ -288,12 +298,9 @@ cs.fileGradApp = async (studentId, studentName, major, completedCodes) => {
   return data;
 };
 cs.decideGradApp = async (id, decision) => {
+  // The RPC handles status update + warning issuance + status='graduated'
+  // atomically. Local cache refreshes via realtime.
   await Backend.decideGradApp(id, decision);
-  if (decision === "reject-reckless") {
-    const a = cs.gradApps.find(x => x.id === id);
-    if (a) await cs.issueWarning(a.studentId, a.studentName, "student",
-      "Reckless graduation application — required courses missing");
-  }
 };
 
 // ============= Phase engine =============
@@ -441,7 +448,12 @@ cs.advancePhase = async () => {
   return data;
 };
 cs.canRegister = () => cs.phase === 2 || !!cs.specialReg;
-cs.canReview = (classCode) => cs.phase >= 3 && cs.phase <= 4 && !cs.isClassGraded(classCode);
+// Reviews are open as soon as the student is enrolled and stay open until a
+// grade is posted (or the term ends). Spec text says "class-running period",
+// but for the demo we let students review during Registration too — otherwise
+// the default-Registration setup leaves the review button disabled with no
+// obvious next step.
+cs.canReview = (classCode) => cs.phase >= 2 && cs.phase <= 4 && !cs.isClassGraded(classCode);
 cs.canGrade = () => cs.phase === 4;
 
 // Applications: add (from ApplyPage) and decide (from RegistrarDash)

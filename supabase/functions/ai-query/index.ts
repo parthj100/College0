@@ -1,8 +1,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.46.1';
 
 // Spec §9: role-gated KB + LLM fallback with hallucination warning.
-// Pipeline: role gate → user-context fast paths → vector search (if embeddings
-// exist) → lexical KB → LLM fallback (Anthropic, OpenAI, Ollama — first set wins).
+// Pipeline: role gate → user-context fast paths → lexical KB → LLM fallback (Ollama).
 
 const CORS = {
   'access-control-allow-origin': '*',
@@ -85,31 +84,6 @@ async function answerUserContext(supabase: any, role: string, userId: string | n
   return null;
 }
 
-async function embedQuestion(question: string): Promise<number[] | null> {
-  const key = Deno.env.get('OPENAI_API_KEY');
-  if (!key) return null;
-  try {
-    const res = await fetch('https://api.openai.com/v1/embeddings', {
-      method: 'POST',
-      headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ model: 'text-embedding-3-small', input: question }),
-    });
-    if (!res.ok) return null;
-    const json = await res.json();
-    return json.data?.[0]?.embedding ?? null;
-  } catch { return null; }
-}
-
-async function answerFromVector(supabase: any, role: string, q: string): Promise<Answer | null> {
-  const vec = await embedQuestion(q);
-  if (!vec) return null;
-  const { data, error } = await supabase.rpc('match_kb_docs', { query_embedding: vec, p_role: role, p_k: 1 });
-  if (error || !data || data.length === 0) return null;
-  const best = data[0];
-  if (best.distance > 0.45) return null;
-  return { body: best.body, source: `${best.source} (vector)`, kind: 'local' };
-}
-
 // English stopwords + very-short tokens that would otherwise dominate the
 // score and cause the KB to false-positive on questions that have nothing to
 // do with College0 (e.g. "What is the capital of France?" used to match the
@@ -157,56 +131,6 @@ async function answerFromKB(supabase: any, role: string, q: string): Promise<Ans
 
 const LLM_SYSTEM = 'You are an assistant for College0, a small fictional graduate program. Answer the user concisely. If the answer is not part of widely-known knowledge, say so plainly. Always end your answer with the sentence "Please verify with the registrar." (no quotes), so the caller knows this came from a general model and might be wrong.';
 
-async function answerFromAnthropic(question: string, apiKey: string): Promise<Answer | null> {
-  try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5',
-        max_tokens: 400,
-        system: LLM_SYSTEM,
-        messages: [{ role: 'user', content: question }],
-      }),
-    });
-    const json = await res.json();
-    if (!res.ok) return { body: `Anthropic API ${res.status}: ${json?.error?.message || 'unknown error'}`, source: 'External LLM · error', kind: 'llm' };
-    const text = json?.content?.[0]?.text;
-    if (!text) return null;
-    return { body: text, source: 'External LLM · Anthropic (Claude Haiku 4.5)', kind: 'llm' };
-  } catch (e) {
-    return { body: `Anthropic call failed: ${e instanceof Error ? e.message : String(e)}`, source: 'External LLM · error', kind: 'llm' };
-  }
-}
-
-async function answerFromOpenAI(question: string, apiKey: string): Promise<Answer | null> {
-  try {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        max_tokens: 400,
-        messages: [
-          { role: 'system', content: LLM_SYSTEM },
-          { role: 'user', content: question },
-        ],
-      }),
-    });
-    const json = await res.json();
-    if (!res.ok) return { body: `OpenAI API ${res.status}: ${json?.error?.message || 'unknown error'}`, source: 'External LLM · error', kind: 'llm' };
-    const text = json?.choices?.[0]?.message?.content;
-    if (!text) return null;
-    return { body: text, source: 'External LLM · OpenAI (gpt-4o-mini)', kind: 'llm' };
-  } catch (e) {
-    return { body: `OpenAI call failed: ${e instanceof Error ? e.message : String(e)}`, source: 'External LLM · error', kind: 'llm' };
-  }
-}
-
 // Ollama. Two supported configurations:
 //   1. Self-hosted: OLLAMA_URL points at a public host running Ollama (localhost
 //      won't work from edge functions; use a tunnel or a cloud VM).
@@ -241,30 +165,18 @@ async function answerFromOllama(question: string, url: string, model: string, ap
 }
 
 async function answerFromLLM(question: string): Promise<Answer> {
-  const anth = Deno.env.get('ANTHROPIC_API_KEY');
-  const oai = Deno.env.get('OPENAI_API_KEY');
   const ollamaUrl = Deno.env.get('OLLAMA_URL') || (Deno.env.get('OLLAMA_API_KEY') ? 'https://ollama.com' : '');
   const ollamaKey = Deno.env.get('OLLAMA_API_KEY');
   // Default model: gpt-oss:20b for Ollama Cloud (the lightest cloud option)
   // when a key is set; llama3.2 for self-hosted.
   const ollamaModel = Deno.env.get('OLLAMA_MODEL') || (ollamaKey ? 'gpt-oss:20b' : 'llama3.2');
 
-  // Precedence: Anthropic → OpenAI → Ollama. First configured backend wins; if it
-  // errors, the next one is tried.
-  if (anth) {
-    const a = await answerFromAnthropic(question, anth);
-    if (a && a.source !== 'External LLM · error') return a;
-  }
-  if (oai) {
-    const a = await answerFromOpenAI(question, oai);
-    if (a && a.source !== 'External LLM · error') return a;
-  }
   if (ollamaUrl) {
     const a = await answerFromOllama(question, ollamaUrl, ollamaModel, ollamaKey);
     if (a) return a;
   }
   return {
-    body: "I don't have this in the College0 knowledge base, and no external model is configured. Try asking a registrar.",
+    body: "I don't have this in the College0 knowledge base, and Ollama is not configured. Try asking a registrar.",
     source: 'No source',
     kind: 'llm',
   };
@@ -311,9 +223,6 @@ Deno.serve(async (req) => {
 
   const userCtx = await answerUserContext(supabase, role, userId, question);
   if (userCtx) return ok(userCtx);
-
-  const vec = await answerFromVector(supabase, role, question);
-  if (vec) return ok(vec);
 
   const kb = await answerFromKB(supabase, role, question);
   if (kb) return ok(kb);

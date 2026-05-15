@@ -7,7 +7,8 @@ that answers from a local knowledge base before falling back to a hosted LLM.
 
 The frontend is plain HTML + React 18 (UMD build, in-browser Babel — no build
 step). The backend is Supabase: Postgres with Row Level Security, RPC
-functions, edge functions, and pgvector for the AI knowledge base.
+functions, and edge functions. The AI assistant uses an Ollama LLM as its
+external fallback.
 
 ## Quick start (uses the existing demo backend)
 
@@ -89,19 +90,18 @@ curl -X POST "https://<YOUR_REF>.supabase.co/functions/v1/bootstrap-demo-users" 
 
 ### 4. Configure the LLM fallback (optional but recommended)
 
-In the Supabase dashboard → **Functions → Secrets**, set whichever you have a
-key for. The first one set wins; on per-call errors the next is tried.
+The AI assistant uses Ollama for non-KB questions. In the Supabase
+dashboard → **Functions → Secrets**, set the keys for whichever Ollama
+deployment you have.
 
-| Secret               | Purpose                                                                     |
-|----------------------|-----------------------------------------------------------------------------|
-| `ANTHROPIC_API_KEY`  | Claude Haiku 4.5 — preferred for handbook-style Q&A                         |
-| `OPENAI_API_KEY`     | gpt-4o-mini for chat **and** `text-embedding-3-small` for vector KB search  |
+| Secret               | Purpose                                                                       |
+|----------------------|-------------------------------------------------------------------------------|
 | `OLLAMA_API_KEY`     | Ollama Cloud / Turbo. Defaults to `gpt-oss:20b`, override with `OLLAMA_MODEL` |
-| `OLLAMA_URL`         | Self-hosted Ollama — must be a public URL the edge runtime can reach        |
-| `DEMO_TEMP_PASSWORD` | Temp password handed to newly-accepted applicants (default `123456`)        |
+| `OLLAMA_URL`         | Self-hosted Ollama — must be a public URL the edge runtime can reach          |
+| `DEMO_TEMP_PASSWORD` | Temp password handed to newly-accepted applicants (default `123456`)          |
 
-Without any of these, the local KB still answers handbook questions; non-KB
-questions return a "no model configured" message.
+Without these, the local KB still answers handbook questions; non-KB
+questions return a "Ollama is not configured" message.
 
 ### 5. Point the frontend at your project
 
@@ -198,13 +198,10 @@ access token. The function evaluates these in order, returning the first hit:
    ask roster-wide queries.
 2. **User-context fast paths** — "what's my GPA?", "what classes am I in?",
    "who's at risk?" are answered directly from the DB.
-3. **Vector search** — if `OPENAI_API_KEY` is set, the question is embedded
-   and matched against `kb_docs` via pgvector (`match_kb_docs` RPC, threshold
-   0.45).
-4. **Lexical search** — token-overlap match against `kb_docs` (stopwords
+3. **Lexical KB search** — token-overlap match against `kb_docs` (stopwords
    filtered, 4-char minimum, ≥2 meaningful hits required).
-5. **LLM fallback** — Anthropic → OpenAI → Ollama, first configured wins. The
-   system prompt always appends *"Please verify with the registrar."*
+4. **LLM fallback** — Ollama (Cloud Turbo or self-hosted). The system prompt
+   always appends *"Please verify with the registrar."*
 
 Every answer comes back as `{ body, source, kind }` so the UI can show the
 attribution chip.

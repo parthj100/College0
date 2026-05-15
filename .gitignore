@@ -6,8 +6,11 @@ __pycache__/
 node_modules/
 *.log
 
-# Local-only configuration
-.claude/launch.json
+# Local-only configuration (Claude Code session settings, MCP launch config,
+# and any worktree state). Nothing in here is needed by anyone cloning the
+# repo, and settings.local.json captures local Bash command history that
+# can include URLs with anon keys.
+.claude/
 
 # Supabase project URL + anon key — committed for Vercel deploys.
 # The anon key is designed to be public (RLS gates everything server-side).
